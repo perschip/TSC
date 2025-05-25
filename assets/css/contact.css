@@ -1,0 +1,170 @@
+/* 
+ * Tristate Cards Contact Form Stylesheet
+ * Specific styles for the contact page
+ */
+
+.contact-form-card {
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    border-radius: 0.5rem;
+}
+
+.contact-form-card .card-body {
+    padding: 2rem;
+}
+
+.contact-form-heading {
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: #212529;
+}
+
+.contact-form label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.contact-form .form-control {
+    border-radius: 0.25rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid #ced4da;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.contact-form .form-control:focus {
+    border-color: #0275d8;
+    box-shadow: 0 0 0 0.25rem rgba(2, 117, 216, 0.25);
+}
+
+.contact-form textarea {
+    min-height: 150px;
+    resize: vertical;
+}
+
+.contact-form .btn-primary {
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    border-radius: 0.25rem;
+    transition: all 0.3s ease;
+}
+
+.contact-form .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.25rem 0.5rem rgba(2, 117, 216, 0.3);
+}
+
+/* Contact Info Card */
+.contact-info-card {
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+    border-radius: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.contact-info-card .card-body {
+    padding: 1.5rem;
+}
+
+.contact-info-heading {
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #212529;
+}
+
+.contact-info-item {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 1.25rem;
+}
+
+.contact-info-icon {
+    color: #0275d8;
+    font-size: 1.25rem;
+    margin-right: 1rem;
+    width: 1.5rem;
+    text-align: center;
+}
+
+.contact-info-content h5 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.contact-info-content p {
+    margin-bottom: 0;
+    color: #6c757d;
+}
+
+.contact-info-content a {
+    color: #6c757d;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.contact-info-content a:hover {
+    color: #0275d8;
+}
+
+/* Social Links */
+.social-links {
+    display: flex;
+    margin-top: 1.5rem;
+}
+
+.social-links a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #f8f9fa;
+    color: #495057;
+    margin-right: 0.75rem;
+    transition: all 0.3s ease;
+}
+
+.social-links a:hover {
+    background-color: #0275d8;
+    color: white;
+    transform: translateY(-3px);
+}
+
+/* FAQ Section */
+.faq-card {
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+    border-radius: 0.5rem;
+}
+
+.accordion-button:focus {
+    box-shadow: none;
+    border-color: rgba(0, 0, 0, 0.125);
+}
+
+.accordion-button:not(.collapsed) {
+    color: #0275d8;
+    background-color: rgba(2, 117, 216, 0.05);
+}
+
+.accordion-button::after {
+    background-size: 1rem;
+}
+
+/* Map */
+.contact-map {
+    height: 300px;
+    border-radius: 0.5rem;
+    margin-top: 1.5rem;
+    border: none;
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 767.98px) {
+    .contact-form-card .card-body,
+    .contact-info-card .card-body {
+        padding: 1.5rem;
+    }
+}

@@ -1,0 +1,79 @@
+# Enable rewrite engine
+RewriteEngine On
+
+# Set rewrite base
+RewriteBase /
+
+# Redirect to remove trailing slashes
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)/$ /$1 [L,R=301]
+
+# Admin panel rewrites
+RewriteRule ^admin$ admin/ [L]
+RewriteRule ^admin/$ admin/index.php [L]
+RewriteRule ^admin/blog$ admin/blog/list.php [L]
+RewriteRule ^admin/blog/create$ admin/blog/create.php [L]
+RewriteRule ^admin/blog/edit/([0-9]+)$ admin/blog/edit.php?id=$1 [L]
+RewriteRule ^admin/pages$ admin/pages/list.php [L]
+RewriteRule ^admin/pages/create$ admin/pages/create.php [L]
+RewriteRule ^admin/pages/edit/([0-9]+)$ admin/pages/edit.php?id=$1 [L]
+RewriteRule ^admin/whatnot$ admin/whatnot/settings.php [L]
+RewriteRule ^admin/analytics$ admin/analytics/dashboard.php [L]
+RewriteRule ^admin/settings$ admin/settings/general.php [L]
+
+# Standard page rewrites - handle index to homepage
+RewriteRule ^index$ / [R=301,L]
+RewriteRule ^index.php$ / [R=301,L]
+
+# Clean URL rewrites for standard pages
+RewriteRule ^about$ about.php [L]
+RewriteRule ^contact$ contact.php [L]
+RewriteRule ^blog$ blog.php [L]
+
+# Blog post rewrites
+RewriteRule ^blog/([a-zA-Z0-9-]+)$ blog-post.php?slug=$1 [L]
+
+# Custom page rewrites - make sure they don't match other rules or physical files
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([a-zA-Z0-9-]+)$ page.php?slug=$1 [L]
+
+# Protect sensitive files
+<FilesMatch "^\.ht">
+    Order deny,allow
+    Deny from all
+</FilesMatch>
+
+# Prevent directory listing
+Options -Indexes
+
+# Set default character set
+AddDefaultCharset UTF-8
+
+# Compress text files
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/x-javascript application/json
+</IfModule>
+
+# Set browser caching
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/pdf "access plus 1 month"
+    ExpiresByType text/x-javascript "access plus 1 month"
+    ExpiresByType application/x-shockwave-flash "access plus 1 month"
+    ExpiresByType image/x-icon "access plus 1 year"
+    ExpiresDefault "access plus 2 days"
+</IfModule>
+
+# Test if .htaccess is being read
+<IfModule mod_rewrite.c>
+    # This should redirect all requests to test-htaccess.php
+    # Comment out after testing
+    RewriteRule ^test-rewrite$ test-htaccess.php [L]
+</IfModule>

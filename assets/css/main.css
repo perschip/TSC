@@ -1,0 +1,450 @@
+/* 
+ * Tristate Cards Main Stylesheet
+ * Main frontend styles for the Tristate Cards website
+ */
+
+/* ---------- Global Variables ---------- */
+:root {
+    --primary-color: #0275d8;
+    --secondary-color: #6c757d;
+    --accent-color: #fd7e14;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+    --success-color: #28a745;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --info-color: #17a2b8;
+    --border-radius: 0.5rem;
+    --box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    --transition-speed: 0.3s;
+}
+
+/* ---------- Global Styles ---------- */
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #f9f9f9;
+    color: var(--dark-color);
+}
+
+a {
+    text-decoration: none;
+    transition: color var(--transition-speed);
+}
+
+a:hover {
+    text-decoration: none;
+}
+
+/* ---------- Layout Components ---------- */
+
+/* Navigation */
+.navbar {
+    background-color: var(--dark-color);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.navbar-brand {
+    font-weight: 700;
+    color: var(--light-color);
+}
+
+.nav-link {
+    color: var(--light-color);
+    transition: color var(--transition-speed);
+}
+
+.nav-link:hover {
+    color: var(--accent-color);
+}
+
+.nav-link.active {
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+/* Hero Section */
+.hero-section {
+    background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+    color: white;
+    padding: 3rem 0;
+    margin-bottom: 2rem;
+}
+
+.hero-section h1 {
+    font-weight: 700;
+    font-size: 2.5rem;
+}
+
+/* Cards */
+.card {
+    border: none;
+    box-shadow: var(--box-shadow);
+    transition: transform var(--transition-speed);
+    margin-bottom: 1.5rem;
+    border-radius: var(--border-radius);
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.card-title {
+    font-weight: 600;
+}
+
+/* Whatnot Status */
+.whatnot-status {
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 2rem;
+    background-color: rgba(0, 123, 255, 0.1);
+    border: 1px solid rgba(0, 123, 255, 0.3);
+}
+
+.whatnot-live {
+    background-color: rgba(40, 167, 69, 0.1);
+    border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.whatnot-upcoming {
+    background-color: rgba(0, 123, 255, 0.1);
+    border: 1px solid rgba(0, 123, 255, 0.3);
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+.status-live {
+    background-color: var(--success-color);
+    animation: pulse 1.5s infinite;
+}
+
+.status-upcoming {
+    background-color: var(--primary-color);
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Footer */
+.footer {
+    background-color: var(--dark-color);
+    color: var(--light-color);
+    padding: 2rem 0;
+    margin-top: 3rem;
+}
+
+.footer a {
+    color: var(--light-color);
+    transition: color var(--transition-speed);
+}
+
+.footer a:hover {
+    color: var(--accent-color);
+}
+
+.footer-heading {
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: var(--accent-color);
+}
+
+.social-links a {
+    display: inline-block;
+    margin-right: 15px;
+    font-size: 1.5rem;
+}
+
+/* ---------- Components ---------- */
+
+/* eBay listings customization */
+#auction-nudge-items {
+    margin-top: 1.5rem;
+}
+
+.an-item {
+    transition: transform var(--transition-speed);
+}
+
+.an-item:hover {
+    transform: translateY(-5px);
+}
+
+.an-price {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.an-listings-header {
+    display: none;
+}
+
+.auction-nudge-customizations.auctions-remaining {
+    color: var(--secondary-color);
+    font-size: 0.9rem;
+}
+
+/* Testimonials */
+.testimonial {
+    position: relative;
+    padding-left: 1.5rem;
+}
+
+.testimonial:before {
+    content: '"';
+    font-size: 3rem;
+    position: absolute;
+    left: 0;
+    top: -1rem;
+    opacity: 0.2;
+    font-family: serif;
+}
+
+.testimonial-text {
+    font-style: italic;
+    margin-bottom: 0.5rem;
+}
+
+.testimonial-author {
+    font-weight: 600;
+    text-align: right;
+}
+
+/* ---------- Forms ---------- */
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(2, 117, 216, 0.25);
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover, .btn-primary:focus {
+    background-color: #0269c2;
+    border-color: #0262b7;
+}
+
+/* ---------- Utility Classes ---------- */
+.text-truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ---------- Responsive Adjustments ---------- */
+@media (max-width: 767.98px) {
+    .hero-section {
+        padding: 2rem 0;
+    }
+    
+    .hero-section h1 {
+        font-size: 2rem;
+    }
+    
+    .footer {
+        text-align: center;
+    }
+    
+    .social-links {
+        justify-content: center;
+        margin-bottom: 1rem;
+    }
+}
+
+/* ---------- Page-Specific Styles ---------- */
+
+/* About Page */
+.team-member {
+    text-align: center;
+}
+
+.team-member img {
+    width: 100%;
+    max-width: 200px;
+    border-radius: 50%;
+    margin-bottom: 1rem;
+}
+
+/* Contact Page */
+.contact-info i {
+    width: 30px;
+    text-align: center;
+    margin-right: 10px;
+    color: var(--primary-color);
+}
+
+/* Blog Page */
+.blog-post-card {
+    height: 100%;
+}
+
+.blog-post-image {
+    height: 200px;
+    object-fit: cover;
+    width: 100%;
+}
+
+.blog-post-meta {
+    color: var(--secondary-color);
+    font-size: 0.875rem;
+}
+
+.blog-categories {
+    margin-bottom: 0.5rem;
+}
+
+.blog-category {
+    display: inline-block;
+    background-color: rgba(2, 117, 216, 0.1);
+    color: var(--primary-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Single Blog Post */
+.blog-post-content {
+    line-height: 1.8;
+}
+
+.blog-post-content img {
+    max-width: 100%;
+    height: auto;
+    margin: 1.5rem 0;
+}
+
+.blog-post-content h2, 
+.blog-post-content h3, 
+.blog-post-content h4 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.blog-post-content blockquote {
+    border-left: 4px solid var(--primary-color);
+    padding-left: 1rem;
+    font-style: italic;
+    color: var(--secondary-color);
+}
+
+/* Related Posts */
+.related-posts {
+    margin-top: 3rem;
+}
+
+.related-post-card {
+    height: 100%;
+}
+
+.related-post-image {
+    height: 150px;
+    object-fit: cover;
+}
+/* Testimonial Styles */
+.testimonial {
+    padding: 0.5rem 0;
+}
+
+.testimonial-text {
+    font-style: italic;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.testimonial-author {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #6c757d;
+    text-align: right;
+}
+
+.testimonial-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.testimonial-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+}
+
+.testimonial-card.border-primary {
+    border-width: 2px;
+}
+
+.featured-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #f8f9fa;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+}
+
+.featured-toggle {
+    cursor: pointer;
+    display: inline-block;
+    font-size: 1.2rem;
+    transition: opacity 0.2s;
+}
+.footer {
+    background-color: #212529;
+    color: #f8f9fa;
+}
+
+.footer h5 {
+    color: #fff;
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+}
+
+.footer-links a {
+    color: #adb5bd;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.footer-links a:hover {
+    color: #fff;
+    text-decoration: underline;
+}
+
+.social-links a {
+    color: #adb5bd;
+    font-size: 1.25rem;
+    transition: color 0.2s;
+}
+
+.social-links a:hover {
+    color: #fff;
+}
+
+@media (max-width: 767.98px) {
+    .footer .col-md-3 {
+        margin-bottom: 2rem;
+    }
+}
+.accent-line {
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    width: 80%;
+    margin: 0.5rem 0 1rem 0;
+    opacity: 0.8;
+}
+
+.contact-info {
+    margin-top: 0;
+}

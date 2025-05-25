@@ -1,0 +1,229 @@
+/* 
+ * Tristate Cards Blog Stylesheet
+ * Specific styles for blog pages
+ */
+
+/* Blog listing page */
+.blog-card {
+    transition: transform 0.3s ease;
+    height: 100%;
+}
+
+.blog-card:hover {
+    transform: translateY(-5px);
+}
+
+.blog-featured-image {
+    height: 200px;
+    object-fit: cover;
+    width: 100%;
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+}
+
+.blog-meta {
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+}
+
+.blog-excerpt {
+    color: #495057;
+    margin-bottom: 1rem;
+}
+
+.blog-categories {
+    margin-bottom: 0.5rem;
+}
+
+.blog-category {
+    display: inline-block;
+    background-color: rgba(2, 117, 216, 0.1);
+    color: #0275d8;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Blog single post page */
+.blog-post-header {
+    margin-bottom: 2rem;
+}
+
+.blog-post-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.blog-post-meta {
+    color: #6c757d;
+    margin-bottom: 1rem;
+}
+
+.blog-post-featured-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    margin-bottom: 2rem;
+}
+
+.blog-post-content {
+    line-height: 1.8;
+}
+
+.blog-post-content img {
+    max-width: 100%;
+    height: auto;
+    margin: 1.5rem 0;
+    border-radius: 0.5rem;
+}
+
+.blog-post-content h2,
+.blog-post-content h3,
+.blog-post-content h4 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.blog-post-content p {
+    margin-bottom: 1.5rem;
+}
+
+.blog-post-content blockquote {
+    border-left: 4px solid #0275d8;
+    padding: 0.5rem 0 0.5rem 1.5rem;
+    margin: 1.5rem 0;
+    font-style: italic;
+    color: #6c757d;
+}
+
+.blog-post-content a {
+    color: #0275d8;
+    text-decoration: none;
+}
+
+.blog-post-content a:hover {
+    text-decoration: underline;
+}
+
+.blog-post-content ul,
+.blog-post-content ol {
+    margin-bottom: 1.5rem;
+    padding-left: 2rem;
+}
+
+.blog-post-content li {
+    margin-bottom: 0.5rem;
+}
+
+.blog-post-content pre,
+.blog-post-content code {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.25rem;
+    padding: 0.2rem 0.4rem;
+    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.blog-post-content pre {
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+}
+
+/* Blog sidebar */
+.blog-sidebar {
+    position: sticky;
+    top: 2rem;
+}
+
+.blog-sidebar-section {
+    margin-bottom: 2rem;
+}
+
+.blog-sidebar-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.blog-sidebar-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+.blog-sidebar-list li {
+    margin-bottom: 0.5rem;
+}
+
+.blog-sidebar-list a {
+    color: #495057;
+    text-decoration: none;
+}
+
+.blog-sidebar-list a:hover {
+    color: #0275d8;
+}
+
+.blog-tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.blog-tag {
+    display: inline-block;
+    background-color: #f8f9fa;
+    color: #6c757d;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    margin-right: 0.5rem;
+    margin-bottom: 0.5rem;
+    text-decoration: none;
+}
+
+.blog-tag:hover {
+    background-color: #e9ecef;
+    color: #212529;
+}
+
+/* Related posts */
+.related-posts {
+    margin-top: 3rem;
+    padding-top: 3rem;
+    border-top: 1px solid #e9ecef;
+}
+
+.related-post-card {
+    height: 100%;
+}
+
+.related-post-image {
+    height: 150px;
+    object-fit: cover;
+    border-top-left-radius: 0.5rem;
+    border-top-right-radius: 0.5rem;
+}
+
+/* Blog pagination */
+.blog-pagination {
+    margin-top: 2rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767.98px) {
+    .blog-post-title {
+        font-size: 2rem;
+    }
+    
+    .blog-sidebar {
+        position: static;
+        margin-top: 2rem;
+    }
+}
