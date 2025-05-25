@@ -1,6 +1,3 @@
-<?php
-// admin/includes/sidebar.php - Completely updated version with dropdowns
-?>
 <!-- Sidebar -->
 <div class="col-md-3 col-lg-2 d-md-block sidebar collapse p-0">
     <div class="d-flex flex-column p-3 h-100">
@@ -16,153 +13,93 @@
                 </a>
             </li>
             
-            <!-- Content Section -->
-            <li>
-                <p class="sidebar-heading mt-2 mb-1">Content</p>
-            </li>
-            
-            <!-- Blog Posts Dropdown -->
-            <li>
-                <a href="#" class="nav-link dropdown-toggle <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/blog/') !== false && strpos($_SERVER['REQUEST_URI'], '/admin/blog/settings.php') === false ? 'active' : ''; ?>" data-bs-toggle="collapse" data-bs-target="#blogSubmenu" aria-expanded="false">
-                    <i class="fas fa-blog me-2"></i>
-                    Blog Posts
+            <!-- Content Management Dropdown -->
+            <li class="nav-item dropdown">
+                <a href="#" class="nav-link dropdown-toggle <?php echo (strpos($_SERVER['REQUEST_URI'], '/admin/blog/') !== false || strpos($_SERVER['REQUEST_URI'], '/admin/pages/') !== false || strpos($_SERVER['REQUEST_URI'], '/admin/navigation/') !== false) ? 'active' : ''; ?>" 
+                   id="contentDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-edit me-2"></i>
+                    Content
                 </a>
-                <div class="collapse <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/blog/') !== false && strpos($_SERVER['REQUEST_URI'], '/admin/blog/settings.php') === false ? 'show' : ''; ?>" id="blogSubmenu">
-                    <ul class="nav flex-column ms-3 mt-2">
-                        <li>
-                            <a href="/admin/blog/list.php" class="nav-link <?php echo basename($_SERVER['SCRIPT_NAME']) === 'list.php' && strpos($_SERVER['REQUEST_URI'], '/admin/blog/') !== false ? 'active' : ''; ?>">
-                                <i class="fas fa-list me-1"></i> All Posts
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/admin/blog/create.php" class="nav-link <?php echo basename($_SERVER['SCRIPT_NAME']) === 'create.php' && strpos($_SERVER['REQUEST_URI'], '/admin/blog/') !== false ? 'active' : ''; ?>">
-                                <i class="fas fa-plus me-1"></i> Add New
-                            </a>
-                        </li>
-                    </ul>
-                </div>
+                <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="contentDropdown">
+                    <li><a class="dropdown-item <?php echo (strpos($_SERVER['REQUEST_URI'], '/admin/blog/') !== false && strpos($_SERVER['REQUEST_URI'], '/admin/blog/settings.php') === false) ? 'active' : ''; ?>" href="/admin/blog/list.php">
+                        <i class="fas fa-blog me-2"></i> Blog Posts
+                    </a></li>
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/blog/settings.php') !== false ? 'active' : ''; ?>" href="/admin/blog/settings.php">
+                        <i class="fas fa-cog me-2"></i> Blog Settings
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/pages/') !== false ? 'active' : ''; ?>" href="/admin/pages/list.php">
+                        <i class="fas fa-file-alt me-2"></i> Pages
+                    </a></li>
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/navigation/') !== false ? 'active' : ''; ?>" href="/admin/navigation/manage.php">
+                        <i class="fas fa-bars me-2"></i> Navigation
+                    </a></li>
+                </ul>
             </li>
             
-            <!-- Blog Settings Link -->
-            <li>
-                <a href="/admin/blog/settings.php" class="nav-link <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/blog/settings.php') !== false ? 'active' : ''; ?>">
-                    <i class="fas fa-cog me-2"></i>
-                    Blog Settings
+            <!-- Business Tools Dropdown -->
+            <li class="nav-item dropdown">
+                <a href="#" class="nav-link dropdown-toggle <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/breaks/') !== false ? 'active' : ''; ?>" 
+                   id="businessDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-calculator me-2"></i>
+                    Business Tools
                 </a>
+                <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="businessDropdown">
+                    <li><a class="dropdown-item <?php echo (strpos($_SERVER['REQUEST_URI'], '/admin/breaks/calculator.php') !== false) ? 'active' : ''; ?>" href="/admin/breaks/calculator.php">
+                        <i class="fas fa-calculator me-2"></i> Break Calculator
+                    </a></li>
+                    <li><a class="dropdown-item <?php echo (strpos($_SERVER['REQUEST_URI'], '/admin/breaks/teams.php') !== false) ? 'active' : ''; ?>" href="/admin/breaks/teams.php">
+                        <i class="fas fa-users me-2"></i> Team Popularity
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="/admin/analytics/dashboard.php">
+                        <i class="fas fa-chart-line me-2"></i> Analytics
+                    </a></li>
+                </ul>
             </li>
             
-            <!-- Pages Dropdown -->
-            <li>
-                <a href="#" class="nav-link dropdown-toggle <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/pages/') !== false ? 'active' : ''; ?>" data-bs-toggle="collapse" data-bs-target="#pagesSubmenu" aria-expanded="false">
-                    <i class="fas fa-file-alt me-2"></i>
-                    Pages
+            <!-- Integrations Dropdown -->
+            <li class="nav-item dropdown">
+                <a href="#" class="nav-link dropdown-toggle <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/whatnot/') !== false ? 'active' : ''; ?>" 
+                   id="integrationsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-plug me-2"></i>
+                    Integrations
                 </a>
-                <div class="collapse <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/pages/') !== false ? 'show' : ''; ?>" id="pagesSubmenu">
-                    <ul class="nav flex-column ms-3 mt-2">
-                        <li>
-                            <a href="/admin/pages/list.php" class="nav-link <?php echo basename($_SERVER['SCRIPT_NAME']) === 'list.php' && strpos($_SERVER['REQUEST_URI'], '/admin/pages/') !== false ? 'active' : ''; ?>">
-                                <i class="fas fa-list me-1"></i> All Pages
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/admin/pages/create.php" class="nav-link <?php echo basename($_SERVER['SCRIPT_NAME']) === 'create.php' && strpos($_SERVER['REQUEST_URI'], '/admin/pages/') !== false ? 'active' : ''; ?>">
-                                <i class="fas fa-plus me-1"></i> Add New
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </li>
-            
-            <!-- Navigation Manager Dropdown -->
-            <li>
-                <a href="#" class="nav-link dropdown-toggle <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/navigation/') !== false ? 'active' : ''; ?>" data-bs-toggle="collapse" data-bs-target="#navigationSubmenu" aria-expanded="false">
-                    <i class="fas fa-bars me-2"></i>
-                    Navigation Manager
-                </a>
-                <div class="collapse <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/navigation/') !== false ? 'show' : ''; ?>" id="navigationSubmenu">
-                    <ul class="nav flex-column ms-3 mt-2">
-                        <li>
-                            <a href="/admin/navigation/manage.php" class="nav-link <?php echo basename($_SERVER['SCRIPT_NAME']) === 'manage.php' && strpos($_SERVER['REQUEST_URI'], '/admin/navigation/') !== false ? 'active' : ''; ?>">
-                                <i class="fas fa-link me-1"></i> Manage Links
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/admin/navigation/categories.php" class="nav-link <?php echo basename($_SERVER['SCRIPT_NAME']) === 'categories.php' && strpos($_SERVER['REQUEST_URI'], '/admin/navigation/') !== false ? 'active' : ''; ?>">
-                                <i class="fas fa-folder me-1"></i> Manage Categories
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </li>
-            
-            <!-- Testimonials Dropdown -->
-            <li>
-                <a href="#" class="nav-link dropdown-toggle <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/testimonials/') !== false ? 'active' : ''; ?>" data-bs-toggle="collapse" data-bs-target="#testimonialsSubmenu" aria-expanded="false">
-                    <i class="fas fa-comment-dots me-2"></i>
-                    Testimonials
-                </a>
-                <div class="collapse <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/testimonials/') !== false ? 'show' : ''; ?>" id="testimonialsSubmenu">
-                    <ul class="nav flex-column ms-3 mt-2">
-                        <li>
-                            <a href="/admin/testimonials/list.php" class="nav-link <?php echo basename($_SERVER['SCRIPT_NAME']) === 'list.php' && strpos($_SERVER['REQUEST_URI'], '/admin/testimonials/') !== false ? 'active' : ''; ?>">
-                                <i class="fas fa-list me-1"></i> All Testimonials
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/admin/testimonials/create.php" class="nav-link <?php echo basename($_SERVER['SCRIPT_NAME']) === 'create.php' && strpos($_SERVER['REQUEST_URI'], '/admin/testimonials/') !== false ? 'active' : ''; ?>">
-                                <i class="fas fa-plus me-1"></i> Add New
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </li>
-            
-            <!-- Integrations Section -->
-            <li>
-                <p class="sidebar-heading mt-2 mb-1">Integrations</p>
-            </li>
-            
-            <!-- Whatnot Integration -->
-            <li>
-                <a href="/admin/whatnot/settings.php" class="nav-link <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/whatnot/') !== false ? 'active' : ''; ?>">
-                    <i class="fas fa-video me-2"></i>
-                    Whatnot Integration
-                </a>
-            </li>
-            
-            <!-- System Section -->
-            <li>
-                <p class="sidebar-heading mt-2 mb-1">System</p>
-            </li>
-            
-            <!-- Analytics -->
-            <li>
-                <a href="/admin/analytics/dashboard.php" class="nav-link <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/analytics/') !== false ? 'active' : ''; ?>">
-                    <i class="fas fa-chart-line me-2"></i>
-                    Analytics
-                </a>
+                <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="integrationsDropdown">
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/whatnot/') !== false ? 'active' : ''; ?>" href="/admin/whatnot/settings.php">
+                        <i class="fas fa-video me-2"></i> Whatnot
+                    </a></li>
+                    <li><a class="dropdown-item disabled" href="#" title="Coming Soon">
+                        <i class="fab fa-ebay me-2"></i> eBay <small>(Soon)</small>
+                    </a></li>
+                    <li><a class="dropdown-item disabled" href="#" title="Coming Soon">
+                        <i class="fab fa-paypal me-2"></i> PayPal <small>(Soon)</small>
+                    </a></li>
+                </ul>
             </li>
             
             <!-- Settings Dropdown -->
-            <li>
-                <a href="#" class="nav-link dropdown-toggle <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/settings/') !== false ? 'active' : ''; ?>" data-bs-toggle="collapse" data-bs-target="#settingsSubmenu" aria-expanded="false">
+            <li class="nav-item dropdown">
+                <a href="#" class="nav-link dropdown-toggle <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/settings/') !== false ? 'active' : ''; ?>" 
+                   id="settingsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="fas fa-cogs me-2"></i>
                     Settings
                 </a>
-                <div class="collapse <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/settings/') !== false ? 'show' : ''; ?>" id="settingsSubmenu">
-                    <ul class="nav flex-column ms-3 mt-2">
-                        <li>
-                            <a href="/admin/settings/account.php" class="nav-link <?php echo basename($_SERVER['SCRIPT_NAME']) === 'account.php' && strpos($_SERVER['REQUEST_URI'], '/admin/settings/') !== false ? 'active' : ''; ?>">
-                                <i class="fas fa-user-cog me-1"></i> Account Settings
-                            </a>
-                        </li>
-                        <li>
-                            <a href="/admin/settings/general.php" class="nav-link <?php echo basename($_SERVER['SCRIPT_NAME']) === 'general.php' && strpos($_SERVER['REQUEST_URI'], '/admin/settings/') !== false ? 'active' : ''; ?>">
-                                <i class="fas fa-sliders-h me-1"></i> General Settings
-                            </a>
-                        </li>
-                    </ul>
-                </div>
+                <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="settingsDropdown">
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/settings/account') !== false ? 'active' : ''; ?>" href="/admin/settings/account.php">
+                        <i class="fas fa-user-cog me-2"></i> Account
+                    </a></li>
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/settings/general') !== false ? 'active' : ''; ?>" href="/admin/settings/general.php">
+                        <i class="fas fa-cogs me-2"></i> General
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="/admin/breaks/setup_database.php">
+                        <i class="fas fa-database me-2"></i> Database Setup
+                    </a></li>
+                    <li><a class="dropdown-item" href="/emergency_access.php" target="_blank">
+                        <i class="fas fa-tools me-2"></i> Emergency Tools
+                    </a></li>
+                </ul>
             </li>
         </ul>
         <hr>
@@ -172,9 +109,16 @@
                 <strong><?php echo isset($_SESSION['username']) ? htmlspecialchars($_SESSION['username']) : 'Admin'; ?></strong>
             </a>
             <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="dropdownUser1">
-                <li><a class="dropdown-item" href="/admin/settings/account.php">Account Settings</a></li>
+                <li><a class="dropdown-item" href="/admin/settings/account.php">
+                    <i class="fas fa-user-circle me-2"></i> My Account
+                </a></li>
+                <li><a class="dropdown-item" href="/" target="_blank">
+                    <i class="fas fa-globe me-2"></i> View Website
+                </a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="/admin/logout.php">Sign out</a></li>
+                <li><a class="dropdown-item" href="/admin/logout.php">
+                    <i class="fas fa-sign-out-alt me-2"></i> Sign out
+                </a></li>
             </ul>
         </div>
     </div>
@@ -186,3 +130,59 @@
         <i class="fas fa-bars"></i>
     </button>
 </div>
+
+<style>
+/* Custom dropdown styles for sidebar */
+.sidebar .dropdown-menu {
+    background-color: #343a40;
+    border: 1px solid #495057;
+    margin-left: 0.5rem;
+    min-width: 200px;
+}
+
+.sidebar .dropdown-item {
+    color: rgba(255, 255, 255, 0.8);
+    padding: 0.5rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.sidebar .dropdown-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.sidebar .dropdown-item.active {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+.sidebar .dropdown-item.disabled {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.sidebar .dropdown-divider {
+    border-color: #495057;
+}
+
+.sidebar .nav-link.dropdown-toggle::after {
+    margin-left: auto;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 991.98px) {
+    .sidebar .dropdown-menu {
+        position: static !important;
+        transform: none !important;
+        margin-left: 1rem;
+        margin-top: 0.5rem;
+        box-shadow: none;
+        border-left: 2px solid #0d6efd;
+        border-radius: 0;
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+    
+    .sidebar .dropdown-menu.show {
+        display: block;
+    }
+}
+</style>
