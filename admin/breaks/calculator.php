@@ -291,7 +291,109 @@ document.addEventListener("DOMContentLoaded", function() {
         quantityInput.addEventListener("input", calculateTotal);
         costInput.addEventListener("input", calculateTotal);
     }
+    
+    // Handle tier selection changes in the modal
+    const tierSelectors = document.querySelectorAll(".tier-selector");
+    tierSelectors.forEach(selector => {
+        selector.addEventListener("change", function() {
+            const teamId = this.dataset.teamId;
+            const teamCode = this.dataset.teamCode;
+            const tier = this.value;
+            
+            // Update the team tier via AJAX
+            updateTeamTier(teamId, teamCode, tier);
+        });
+    });
+    
+    // Handle update all prices button
+    const updateAllButton = document.getElementById("updateAllPrices");
+    if (updateAllButton) {
+        updateAllButton.addEventListener("click", function() {
+            this.innerHTML = "<i class=\"fas fa-spinner fa-spin me-1\"></i> Updating...";
+            this.disabled = true;
+            
+            // Recalculate the entire break
+            recalculateBreak(' . (isset($current_break) ? $current_break['id'] : 0) . ');
+        });
+    }
 });
+
+function updateTeamTier(teamId, teamCode, tier) {
+    // Define tier multipliers
+    const tierMultipliers = {
+        "premium": 5.0,    // 🔥 Premium
+        "high": 4.0,       // 🔥 High-Demand
+        "popular": 3.0,    // 💥 Popular
+        "standard": 2.0,   // 🧊 Standard
+        "value": 1.5,      // ❄️ Value
+        "discount": 1.0    // 💸 Discount
+    };
+    
+    const multiplier = tierMultipliers[tier];
+    
+    fetch("quick-pricing.php", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: `ajax=1&action=update_team_tier&team_id=${teamId}&tier=${tier}&break_id=' . (isset($current_break) ? $current_break['id'] : 0) . '`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log(`Updated ${teamCode} to ${tier} tier (${multiplier}x)`);
+            
+            // Update the price display in the modal if it exists
+            const modalPrice = document.getElementById(`modal-price-${teamId}`);
+            if (modalPrice && data.new_price) {
+                modalPrice.textContent = `$${data.new_price}`;
+            }
+        } else {
+            console.error("Failed to update team tier:", data.message);
+        }
+    })
+    .catch(error => {
+        console.error("Error updating team tier:", error);
+    });
+}
+
+function recalculateBreak(breakId) {
+    if (breakId <= 0) return;
+    
+    fetch("quick-pricing.php", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: `ajax=1&action=recalculate_break&break_id=${breakId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Show success message and reload page
+            alert(data.message || "Prices updated successfully!");
+            window.location.reload();
+        } else {
+            alert("Error: " + (data.message || "Failed to update prices"));
+            // Re-enable the button
+            const updateButton = document.getElementById("updateAllPrices");
+            if (updateButton) {
+                updateButton.innerHTML = "<i class=\"fas fa-sync me-1\"></i> Update All Prices";
+                updateButton.disabled = false;
+            }
+        }
+    })
+    .catch(error => {
+        console.error("Error recalculating break:", error);
+        alert("Network error occurred. Please try again.");
+        // Re-enable the button
+        const updateButton = document.getElementById("updateAllPrices");
+        if (updateButton) {
+            updateButton.innerHTML = "<i class=\"fas fa-sync me-1\"></i> Update All Prices";
+            updateButton.disabled = false;
+        }
+    });
+}
 </script>
 ';
 
@@ -550,24 +652,24 @@ include_once '../includes/header.php';
                                 $team_stmt->execute([':team_code' => $spot['team_code'], ':sport' => $current_break['sport']]);
                                 $team_multiplier = $team_stmt->fetch()['popularity_multiplier'] ?? 1.0;
                                 
-                                // Determine price tier based on multiplier, not price
-                                if ($team_multiplier >= 1.95) {
+                                // Determine price tier based on multiplier
+                                if ($team_multiplier >= 4.5) {
                                     $tier_class = 'border-danger';
                                     $tier_badge = 'bg-danger';
                                     $tier_text = '🔥 Premium';
-                                } elseif ($team_multiplier >= 1.45) {
+                                } elseif ($team_multiplier >= 3.5) {
                                     $tier_class = 'border-warning';
                                     $tier_badge = 'bg-warning';
                                     $tier_text = '🔥 High';
-                                } elseif ($team_multiplier >= 1.15) {
+                                } elseif ($team_multiplier >= 2.5) {
                                     $tier_class = 'border-info';
                                     $tier_badge = 'bg-info';
                                     $tier_text = '💥 Popular';
-                                } elseif ($team_multiplier >= 0.85) {
+                                } elseif ($team_multiplier >= 1.5) {
                                     $tier_class = 'border-primary';
                                     $tier_badge = 'bg-primary';
                                     $tier_text = '🧊 Standard';
-                                } elseif ($team_multiplier >= 0.65) {
+                                } elseif ($team_multiplier >= 1.2) {
                                     $tier_class = 'border-success';
                                     $tier_badge = 'bg-success';
                                     $tier_text = '❄️ Value';
@@ -666,27 +768,27 @@ include_once '../includes/header.php';
                                         <div class="row text-center">
                                             <div class="col-2">
                                                 <span class="badge bg-danger w-100">🔥 Premium</span>
-                                                <small class="d-block">2.0x</small>
+                                                <small class="d-block">5.0x</small>
                                             </div>
                                             <div class="col-2">
                                                 <span class="badge bg-warning w-100">🔥 High</span>
-                                                <small class="d-block">1.6x</small>
+                                                <small class="d-block">4.0x</small>
                                             </div>
                                             <div class="col-2">
                                                 <span class="badge bg-info w-100">💥 Popular</span>
-                                                <small class="d-block">1.3x</small>
+                                                <small class="d-block">3.0x</small>
                                             </div>
                                             <div class="col-2">
                                                 <span class="badge bg-primary w-100">🧊 Standard</span>
-                                                <small class="d-block">1.0x</small>
+                                                <small class="d-block">2.0x</small>
                                             </div>
                                             <div class="col-2">
                                                 <span class="badge bg-success w-100">❄️ Value</span>
-                                                <small class="d-block">0.8x</small>
+                                                <small class="d-block">1.5x</small>
                                             </div>
                                             <div class="col-2">
                                                 <span class="badge bg-secondary w-100">💸 Discount</span>
-                                                <small class="d-block">0.6x</small>
+                                                <small class="d-block">1.0x</small>
                                             </div>
                                         </div>
                                     </div>
@@ -707,15 +809,15 @@ include_once '../includes/header.php';
                                     foreach ($modal_teams as $team):
                                         // Fix tier detection based on multiplier
                                         $multiplier = $team['popularity_multiplier'];
-                                        if ($multiplier >= 1.95) {
+                                        if ($multiplier >= 4.5) {
                                             $current_tier = 'premium';
-                                        } elseif ($multiplier >= 1.45) {
+                                        } elseif ($multiplier >= 3.5) {
                                             $current_tier = 'high';
-                                        } elseif ($multiplier >= 1.15) {
+                                        } elseif ($multiplier >= 2.5) {
                                             $current_tier = 'popular';
-                                        } elseif ($multiplier >= 0.85) {
+                                        } elseif ($multiplier >= 1.5) {
                                             $current_tier = 'standard';
-                                        } elseif ($multiplier >= 0.65) {
+                                        } elseif ($multiplier >= 1.2) {
                                             $current_tier = 'value';
                                         } else {
                                             $current_tier = 'discount';

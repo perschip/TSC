@@ -16,8 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     foreach ($_POST['multipliers'] as $team_id => $multiplier) {
                         $multiplier = (float)$multiplier;
                         
-                        // Validate multiplier range
-                        if ($multiplier >= 0.5 && $multiplier <= 2.0) {
+                        // Validate multiplier range (updated to 5.0 max)
+                        if ($multiplier >= 0.5 && $multiplier <= 5.0) {
                             $query = "UPDATE teams SET popularity_multiplier = :multiplier WHERE id = :team_id";
                             $stmt = $pdo->prepare($query);
                             $stmt->execute([
@@ -37,91 +37,89 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'reset_to_defaults':
                 $sport = $_POST['sport'];
                 
-                // Default multipliers for quick reset - Updated based on current hobby market
+                // Updated default multipliers with new 5x scale
                 $default_multipliers = [
                     'NFL' => [
-                        // 🔥 Tier 1: Premium Teams (1.8-2.0)
-                        'KC' => 2.0,   // Mahomes is the face of the hobby. Rashee Rice, Xavier Worthy = bonus
-                        'SF' => 2.0,   // Purdy market is hot; deep team, lots of chase
-                        'CHI' => 1.9,  // Caleb Williams mania + DJ Moore + large market
-                        'DET' => 1.9,  // Gibbs, Amon-Ra, LaPorta, and rising team success
-                        'PHI' => 1.8,  // Jalen Hurts, DeVonta, AJ Brown, strong fanbase
-                        'HOU' => 1.8,  // CJ Stroud, Tank Dell, Will Anderson = hobby gold
+                        // 🔥 Tier 1: Premium Teams (4.5-5.0)
+                        'KC' => 5.0,   // Mahomes is the absolute face of the hobby
+                        'SF' => 4.8,   // Purdy + strong roster = top tier
+                        'CHI' => 4.7,  // Caleb Williams mania in huge market
+                        'DET' => 4.6,  // Gibbs, Amon-Ra, LaPorta = incredible rookie depth
+                        'HOU' => 4.5,  // CJ Stroud + Tank Dell + Will Anderson
                         
-                        // 🔥 Tier 2: High-Demand Teams (1.4–1.75)
-                        'CIN' => 1.7,  // Burrow + Chase = perennial chasers
-                        'PIT' => 1.7,  // Iconic brand, strong rookie classes, fan loyalty
-                        'GB' => 1.6,   // Jordan Love + history = sustained demand
-                        'BUF' => 1.6,  // Allen still popular, Kincaid gaining traction
-                        'MIN' => 1.5,  // JJ + McCarthy rookie hype
-                        'DAL' => 1.5,  // National team, Parsons, CeeDee; consistent appeal
-                        'ATL' => 1.5,  // Bijan + Penix + London = intriguing chase
+                        // 🔥 Tier 2: High-Demand Teams (3.5-4.4)
+                        'PHI' => 4.3,  // Jalen Hurts, DeVonta, AJ Brown
+                        'CIN' => 4.2,  // Burrow + Chase = always sought after
+                        'BUF' => 4.0,  // Allen + Kincaid still very popular
+                        'MIN' => 3.9,  // JJ + McCarthy rookie hype
+                        'PIT' => 3.8,  // Iconic brand, strong fan loyalty
+                        'GB' => 3.7,   // Jordan Love breakthrough + history
+                        'BAL' => 3.6,  // Lamar + Zay Flowers
+                        'ATL' => 3.5,  // Bijan + Penix + London
                         
-                        // 💥 Tier 3: Mid-Popularity (1.1–1.4)
-                        'BAL' => 1.4,  // Lamar Jackson + Zay Flowers, playoff team
-                        'IND' => 1.3,  // Anthony Richardson return = hobby rebound
-                        'LAC' => 1.3,  // Herbert still relevant, high upside
-                        'ARI' => 1.3,  // Marvin Harrison Jr. chase = massive boost
-                        'TEN' => 1.2,  // Will Levis, solid RBs
-                        'NYJ' => 1.2,  // Rodgers + Wilson + TV time = steady demand
-                        'NYG' => 1.2,  // Large market but few hot rookies recently
-                        'DEN' => 1.1,  // Nix/rookie QB bump, but market varies
-                        'CLE' => 1.1,  // Strong defense; card market just okay
+                        // 💥 Tier 3: Popular Teams (2.5-3.4)
+                        'DAL' => 3.3,  // National team appeal
+                        'IND' => 3.2,  // Anthony Richardson return
+                        'ARI' => 3.1,  // Marvin Harrison Jr. chase
+                        'LAC' => 3.0,  // Herbert still relevant
+                        'NYJ' => 2.9,  // Rodgers + Wilson + market
+                        'TEN' => 2.8,  // Will Levis upside
+                        'NYG' => 2.7,  // Large market
+                        'DEN' => 2.6,  // Nix rookie QB
+                        'CLE' => 2.5,  // Defense-heavy but steady
                         
-                        // 🧊 Tier 4: Low-Mid Market (0.8–1.0)
-                        'LAR' => 1.0,  // Puka + Stafford, but hobby isn't dominant
-                        'SEA' => 1.0,  // JSN, Geno, and strong following
-                        'TB' => 1.0,   // Mayfield + Evans/Godwin, moderate interest
-                        'NE' => 0.9,   // No Brady = steep decline; Maye might help
-                        'CAR' => 0.9,  // Bryce Young struggled, weak hobby pull
-                        'WAS' => 0.9,  // Jayden Daniels could boost this in 2024
+                        // 🧊 Tier 4: Standard Teams (1.5-2.4)
+                        'LAR' => 2.3,  // Puka + Stafford
+                        'SEA' => 2.2,  // JSN + strong following
+                        'TB' => 2.1,   // Mayfield + Evans/Godwin
+                        'WAS' => 2.0,  // Jayden Daniels potential
+                        'NE' => 1.9,   // Maye might help rebound
+                        'CAR' => 1.8,  // Young struggled but upside
+                        'JAX' => 1.7,  // Lawrence + Etienne
+                        'LV' => 1.6,   // Waiting for QB breakout
+                        'NO' => 1.5,   // Aging but still Saints
                         
-                        // ❄️ Tier 5: Low-Demand Teams (0.5–0.8)
-                        'LV' => 0.8,   // No real hobby draw unless a QB pops
-                        'JAX' => 0.8,  // Lawrence's value cooled; Etienne helps
-                        'NO' => 0.7,   // Aging roster, small card market
-                        'MIA' => 0.7   // Tua/Waddle/Hill are great, but hobby demand lags
+                        // ❄️ Tier 5: Value Teams (1.0-1.4)
+                        'MIA' => 1.2,  // Tua/Waddle/Hill but hobby demand lags
                     ],
                     'MLB' => [
-                        // 🔥 Tier 1: Premium Teams (1.8-2.0)
-                        'NYY' => 2.0,  // Perennial top seller. Huge fanbase, legends, Jasson Domínguez hype
-                        'LAD' => 2.0,  // Ohtani, Mookie, Yamamoto, and elite prospects. National chase
-                        'ATL' => 1.9,  // Acuña, Harris, Strider, and top-tier farm = hobby gold
-                        'BAL' => 1.9,  // Gunnar, Adley, Holliday = major heat across Bowman + Flagship
-                        'CIN' => 1.8,  // Elly De La Cruz, CES, Marte, Cam Collier — deep young core
+                        // 🔥 Tier 1: Premium Teams (4.5-5.0)
+                        'NYY' => 5.0,  // Perennial #1 seller, huge fanbase, Jasson Domínguez
+                        'LAD' => 4.9,  // Ohtani + Mookie + Yamamoto = national chase
+                        'BAL' => 4.8,  // Gunnar + Adley + Holliday = Bowman kings
+                        'ATL' => 4.7,  // Acuña + Harris + Strider + top farm
+                        'CIN' => 4.5,  // Elly De La Cruz + CES + deep young core
                         
-                        // 🔥 Tier 2: High Hobby Appeal (1.4–1.75)
-                        'SEA' => 1.7,  // Julio Rodríguez = top-tier pull. Strong Bowman rookies
-                        'TEX' => 1.7,  // World Series champs + Carter, Langford, and big bats
-                        'CHC' => 1.6,  // Crow-Armstrong + huge market = steady demand
-                        'DET' => 1.6,  // Jobe, Jung, Keith, Meadows — big Bowman presence
-                        'TB' => 1.5,   // Wander + tons of prospect hits; sneaky good in breaks
-                        'SD' => 1.5,   // Tatis, Jackson Merrill, big west coast market
-                        'BOS' => 1.5,  // Strong hobby base + Marcelo Mayer, Roman Anthony
-                        'PIT' => 1.4,  // Paul Skenes + Termarr Johnson = major prospect chase
+                        // 🔥 Tier 2: High Hobby Appeal (3.5-4.4)
+                        'SEA' => 4.3,  // Julio Rodríguez = top-tier pull
+                        'TEX' => 4.2,  // World Series champs + Carter + Langford
+                        'DET' => 4.1,  // Jobe + Jung + Keith + Meadows
+                        'SD' => 4.0,   // Tatis + Jackson Merrill + west coast
+                        'CHC' => 3.9,  // Crow-Armstrong + huge market
+                        'TB' => 3.8,   // Wander + tons of prospect hits
+                        'BOS' => 3.7,  // Strong base + Mayer + Anthony
+                        'PIT' => 3.6,  // Paul Skenes + Termarr Johnson
+                        'ARI' => 3.5,  // Carroll + Lawlar + NL champs
                         
-                        // 💥 Tier 3: Solid Mid-Tier Teams (1.1–1.4)
-                        'ARI' => 1.4,  // Carroll + Lawlar + NL champs boost
-                        'NYM' => 1.3,  // Strong fanbase, inconsistent hobby returns
-                        'STL' => 1.3,  // Classic brand, Walker, Winn, and big legacy
-                        'CLE' => 1.2,  // Espino, Manzardo, and depth in prospects
-                        'TOR' => 1.2,  // Vladdy Jr., Schneider, and upside youth
-                        'MIL' => 1.2,  // Chourio hobby heat, Lauer, Quero, etc
-                        'CWS' => 1.1,  // Colson Montgomery + Oscar Colás = prospect appeal
-                        'PHI' => 1.1,  // Harper, Bohm, Painter = occasional spike
+                        // 💥 Tier 3: Solid Mid-Tier Teams (2.5-3.4)
+                        'NYM' => 3.3,  // Strong fanbase, large market
+                        'STL' => 3.2,  // Classic brand + Walker + Winn
+                        'CLE' => 3.1,  // Espino + Manzardo + depth
+                        'TOR' => 3.0,  // Vladdy Jr. + Schneider
+                        'MIL' => 2.9,  // Chourio hobby heat + Quero
+                        'PHI' => 2.8,  // Harper + Bohm + Painter
+                        'CWS' => 2.7,  // Montgomery + Colás prospects
+                        'HOU' => 2.6,  // Some aging but still Astros brand
+                        'WAS' => 2.5,  // Dylan Crews long-term help
                         
-                        // 🧊 Tier 4: Low-Mid Market (0.8–1.0)
-                        'MIA' => 1.0,  // Pérez & prospects help, but hobby base small
-                        'LAA' => 1.0,  // No more Ohtani = hobby pull drop. Neto + O'Hoppe help
-                        'HOU' => 0.9,  // Aging stars, few rookies; strong in past, now cooling
-                        'SF' => 0.9,   // Weak rookie presence lately, solid legacy
-                        'WAS' => 0.9,  // Dylan Crews might help this long-term
-                        'KC' => 0.9,   // Witt is strong, but not much hobby love overall
-                        
-                        // ❄️ Tier 5: Low-Demand Teams (0.5–0.8)
-                        'COL' => 0.8,  // Weak market, few hot rookies
-                        'MIN' => 0.8,  // Brooks Lee and Lewis offer some upside
-                        'OAK' => 0.7   // Very small hobby audience, almost no current chase
+                        // 🧊 Tier 4: Standard Teams (1.5-2.4)
+                        'SF' => 2.3,   // Solid legacy, some prospects
+                        'MIA' => 2.2,  // Pérez + prospects
+                        'LAA' => 2.1,  // Post-Ohtani but Neto + O'Hoppe
+                        'KC' => 2.0,   // Witt strong but limited hobby love
+                        'MIN' => 1.9,  // Brooks Lee + Lewis upside
+                        'COL' => 1.8,  // Weak market but some young talent
+                        'OAK' => 1.5,  // Very small hobby audience
                     ]
                 ];
                 
@@ -140,7 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                     }
                     
-                    $_SESSION['success_message'] = "Reset {$updated_count} teams to default multipliers!";
+                    $_SESSION['success_message'] = "Reset {$updated_count} teams to updated default multipliers (5x scale)!";
                 } catch (PDOException $e) {
                     $_SESSION['error_message'] = 'Error resetting multipliers: ' . $e->getMessage();
                 }
@@ -185,40 +183,40 @@ $extra_scripts = '
 function updateAllMultipliers(value) {
     const inputs = document.querySelectorAll("input[name^=\"multipliers[\"]");
     inputs.forEach(input => {
-        input.value = parseFloat(value).toFixed(2);
+        input.value = parseFloat(value).toFixed(1);
     });
 }
 
 function resetToDefaults() {
-    if (confirm("Are you sure you want to reset all teams to default multipliers? This will overwrite your current settings.")) {
+    if (confirm("Are you sure you want to reset all teams to updated default multipliers (5x scale)? This will overwrite your current settings.")) {
         document.getElementById("resetForm").submit();
     }
 }
 
 function validateMultiplier(input) {
     let value = parseFloat(input.value);
-    if (isNaN(value) || value < 0.5) {
-        input.value = "0.50";
-    } else if (value > 2.0) {
-        input.value = "2.00";
+    if (isNaN(value) || value < 1.0) {
+        input.value = "1.0";
+    } else if (value > 5.0) {
+        input.value = "5.0";
     } else {
-        input.value = value.toFixed(2);
+        input.value = value.toFixed(1);
     }
     
     // Update row styling based on value
     const row = input.closest("tr");
     row.classList.remove("table-danger", "table-warning", "table-info", "table-primary", "table-success");
     
-    if (value >= 1.8) {
-        row.classList.add("table-danger"); // 🔥 Tier 1
-    } else if (value >= 1.4) {
-        row.classList.add("table-warning"); // 🔥 Tier 2
-    } else if (value >= 1.1) {
-        row.classList.add("table-info"); // 💥 Tier 3
-    } else if (value >= 0.8) {
-        row.classList.add("table-primary"); // 🧊 Tier 4
+    if (value >= 4.5) {
+        row.classList.add("table-danger"); // 🔥 Tier 1: Premium
+    } else if (value >= 3.5) {
+        row.classList.add("table-warning"); // 🔥 Tier 2: High-Demand
+    } else if (value >= 2.5) {
+        row.classList.add("table-info"); // 💥 Tier 3: Popular
+    } else if (value >= 1.5) {
+        row.classList.add("table-primary"); // 🧊 Tier 4: Standard
     } else {
-        row.classList.add("table-success"); // ❄️ Tier 5
+        row.classList.add("table-success"); // ❄️ Tier 5: Value
     }
 }
 
@@ -267,18 +265,18 @@ include_once '../includes/header.php';
                         <div class="stat-label">Total Teams</div>
                     </div>
                     <div class="col-6">
-                        <div class="stat-value text-info"><?php echo number_format($avg_multiplier, 2); ?></div>
+                        <div class="stat-value text-info"><?php echo number_format($avg_multiplier, 1); ?></div>
                         <div class="stat-label">Average</div>
                     </div>
                 </div>
                 
                 <div class="row text-center">
                     <div class="col-6">
-                        <div class="stat-value text-success"><?php echo number_format($min_multiplier, 2); ?></div>
+                        <div class="stat-value text-success"><?php echo number_format($min_multiplier, 1); ?></div>
                         <div class="stat-label">Lowest</div>
                     </div>
                     <div class="col-6">
-                        <div class="stat-value text-danger"><?php echo number_format($max_multiplier, 2); ?></div>
+                        <div class="stat-value text-danger"><?php echo number_format($max_multiplier, 1); ?></div>
                         <div class="stat-label">Highest</div>
                     </div>
                 </div>
@@ -294,7 +292,7 @@ include_once '../includes/header.php';
                 <div class="mb-3">
                     <label class="form-label small">Set All Teams To:</label>
                     <div class="input-group input-group-sm">
-                        <input type="number" class="form-control" id="bulk_value" step="0.01" min="0.5" max="2.0" value="1.00">
+                        <input type="number" class="form-control" id="bulk_value" step="0.1" min="1.0" max="5.0" value="2.0">
                         <button type="button" class="btn btn-outline-secondary" onclick="updateAllMultipliers(document.getElementById('bulk_value').value)">Apply</button>
                     </div>
                 </div>
@@ -305,7 +303,7 @@ include_once '../includes/header.php';
                         <input type="hidden" name="sport" value="<?php echo $selected_sport; ?>">
                     </form>
                     <button type="button" class="btn btn-outline-warning btn-sm" onclick="resetToDefaults()">
-                        <i class="fas fa-undo me-1"></i> Reset to Defaults
+                        <i class="fas fa-undo me-1"></i> Reset to Updated Defaults (5x)
                     </button>
                     <a href="calculator.php" class="btn btn-outline-primary btn-sm">
                         <i class="fas fa-calculator me-1"></i> Back to Calculator
@@ -314,28 +312,28 @@ include_once '../includes/header.php';
             </div>
         </div>
         
-        <!-- Legend -->
+        <!-- Updated Legend -->
         <div class="card shadow mb-4">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold">Hobby Market Tiers</h6>
+                <h6 class="m-0 font-weight-bold">Updated Hobby Market Tiers</h6>
             </div>
             <div class="card-body">
                 <div class="mb-2">
-                    <span class="badge bg-danger me-2">🔥 Tier 1</span> 1.8-2.0 (Premium)
+                    <span class="badge bg-danger me-2">🔥 Tier 1</span> 4.5-5.0 (Premium)
                 </div>
                 <div class="mb-2">
-                    <span class="badge bg-warning me-2">🔥 Tier 2</span> 1.4-1.75 (High-Demand)
+                    <span class="badge bg-warning me-2">🔥 Tier 2</span> 3.5-4.4 (High-Demand)
                 </div>
                 <div class="mb-2">
-                    <span class="badge bg-info me-2">💥 Tier 3</span> 1.1-1.4 (Mid-Popularity)
+                    <span class="badge bg-info me-2">💥 Tier 3</span> 2.5-3.4 (Popular)
                 </div>
                 <div class="mb-2">
-                    <span class="badge bg-primary me-2">🧊 Tier 4</span> 0.8-1.0 (Low-Mid Market)
+                    <span class="badge bg-primary me-2">🧊 Tier 4</span> 1.5-2.4 (Standard)
                 </div>
                 <div class="mb-2">
-                    <span class="badge bg-success me-2">❄️ Tier 5</span> 0.5-0.8 (Low-Demand)
+                    <span class="badge bg-success me-2">❄️ Tier 5</span> 1.0-1.4 (Value)
                 </div>
-                <small class="text-muted">Based on current hobby market trends</small>
+                <small class="text-muted">Updated with 5x max multiplier range</small>
             </div>
         </div>
     </div>
@@ -344,7 +342,7 @@ include_once '../includes/header.php';
         <!-- Teams Table -->
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold"><?php echo $selected_sport; ?> Team Popularity Multipliers</h6>
+                <h6 class="m-0 font-weight-bold"><?php echo $selected_sport; ?> Team Popularity Multipliers (Updated 5x Scale)</h6>
                 <span class="small text-muted"><?php echo count($teams); ?> teams</span>
             </div>
             <div class="card-body">
@@ -380,22 +378,22 @@ include_once '../includes/header.php';
                                                 <input type="number" 
                                                        class="form-control form-control-sm" 
                                                        name="multipliers[<?php echo $team['id']; ?>]" 
-                                                       value="<?php echo number_format($team['popularity_multiplier'], 2); ?>" 
-                                                       step="0.01" 
-                                                       min="0.5" 
-                                                       max="2.0" 
+                                                       value="<?php echo number_format($team['popularity_multiplier'], 1); ?>" 
+                                                       step="0.1" 
+                                                       min="1.0" 
+                                                       max="5.0" 
                                                        onblur="validateMultiplier(this)">
                                             </td>
                                             <td>
                                                 <?php
                                                 $multiplier = $team['popularity_multiplier'];
-                                                if ($multiplier >= 1.8) {
+                                                if ($multiplier >= 4.5) {
                                                     echo '<span class="badge bg-danger">🔥 Tier 1</span>';
-                                                } elseif ($multiplier >= 1.4) {
+                                                } elseif ($multiplier >= 3.5) {
                                                     echo '<span class="badge bg-warning">🔥 Tier 2</span>';
-                                                } elseif ($multiplier >= 1.1) {
+                                                } elseif ($multiplier >= 2.5) {
                                                     echo '<span class="badge bg-info">💥 Tier 3</span>';
-                                                } elseif ($multiplier >= 0.8) {
+                                                } elseif ($multiplier >= 1.5) {
                                                     echo '<span class="badge bg-primary">🧊 Tier 4</span>';
                                                 } else {
                                                     echo '<span class="badge bg-success">❄️ Tier 5</span>';

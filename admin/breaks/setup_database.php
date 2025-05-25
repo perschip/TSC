@@ -70,102 +70,14 @@ try {
     
     $pdo->exec($create_break_spots_table);
     
-    // NFL teams with popularity multipliers (Updated based on current hobby market)
-    $nfl_teams = [
-        // 🔥 Tier 1: Premium Teams (1.8-2.0)
-        ['Kansas City Chiefs', 'KC', 2.0],   // Mahomes is the face of the hobby. Rashee Rice, Xavier Worthy = bonus
-        ['San Francisco 49ers', 'SF', 2.0],  // Purdy market is hot; deep team, lots of chase
-        ['Chicago Bears', 'CHI', 1.9],       // Caleb Williams mania + DJ Moore + large market
-        ['Detroit Lions', 'DET', 1.9],       // Gibbs, Amon-Ra, LaPorta, and rising team success
-        ['Philadelphia Eagles', 'PHI', 1.8], // Jalen Hurts, DeVonta, AJ Brown, strong fanbase
-        ['Houston Texans', 'HOU', 1.8],      // CJ Stroud, Tank Dell, Will Anderson = hobby gold
-        
-        // 🔥 Tier 2: High-Demand Teams (1.4–1.75)
-        ['Cincinnati Bengals', 'CIN', 1.7],  // Burrow + Chase = perennial chasers
-        ['Pittsburgh Steelers', 'PIT', 1.7], // Iconic brand, strong rookie classes, fan loyalty
-        ['Green Bay Packers', 'GB', 1.6],    // Jordan Love + history = sustained demand
-        ['Buffalo Bills', 'BUF', 1.6],       // Allen still popular, Kincaid gaining traction
-        ['Minnesota Vikings', 'MIN', 1.5],   // JJ + McCarthy rookie hype
-        ['Dallas Cowboys', 'DAL', 1.5],      // National team, Parsons, CeeDee; consistent appeal
-        ['Atlanta Falcons', 'ATL', 1.5],     // Bijan + Penix + London = intriguing chase
-        
-        // 💥 Tier 3: Mid-Popularity (1.1–1.4)
-        ['Baltimore Ravens', 'BAL', 1.4],        // Lamar Jackson + Zay Flowers, playoff team
-        ['Indianapolis Colts', 'IND', 1.3],      // Anthony Richardson return = hobby rebound
-        ['Los Angeles Chargers', 'LAC', 1.3],    // Herbert still relevant, high upside
-        ['Arizona Cardinals', 'ARI', 1.3],       // Marvin Harrison Jr. chase = massive boost
-        ['Tennessee Titans', 'TEN', 1.2],        // Will Levis, solid RBs
-        ['New York Jets', 'NYJ', 1.2],           // Rodgers + Wilson + TV time = steady demand
-        ['New York Giants', 'NYG', 1.2],         // Large market but few hot rookies recently
-        ['Denver Broncos', 'DEN', 1.1],          // Nix/rookie QB bump, but market varies
-        ['Cleveland Browns', 'CLE', 1.1],        // Strong defense; card market just okay
-        
-        // 🧊 Tier 4: Low-Mid Market (0.8–1.0)
-        ['Los Angeles Rams', 'LAR', 1.0],        // Puka + Stafford, but hobby isn't dominant
-        ['Seattle Seahawks', 'SEA', 1.0],        // JSN, Geno, and strong following
-        ['Tampa Bay Buccaneers', 'TB', 1.0],     // Mayfield + Evans/Godwin, moderate interest
-        ['New England Patriots', 'NE', 0.9],     // No Brady = steep decline; Maye might help
-        ['Carolina Panthers', 'CAR', 0.9],       // Bryce Young struggled, weak hobby pull
-        ['Washington Commanders', 'WAS', 0.9],   // Jayden Daniels could boost this in 2024
-        
-        // ❄️ Tier 5: Low-Demand Teams (0.5–0.8)
-        ['Las Vegas Raiders', 'LV', 0.8],        // No real hobby draw unless a QB pops
-        ['Jacksonville Jaguars', 'JAX', 0.8],    // Lawrence's value cooled; Etienne helps
-        ['New Orleans Saints', 'NO', 0.7],       // Aging roster, small card market
-        ['Miami Dolphins', 'MIA', 0.7]           // Tua/Waddle/Hill are great, but hobby demand lags
-    ];
-    
-    // MLB teams with popularity multipliers (Updated based on current hobby market)
-    $mlb_teams = [
-        // 🔥 Tier 1: Premium Teams (1.8-2.0)
-        ['New York Yankees', 'NYY', 2.0],     // Perennial top seller. Huge fanbase, legends, Jasson Domínguez hype
-        ['Los Angeles Dodgers', 'LAD', 2.0],  // Ohtani, Mookie, Yamamoto, and elite prospects. National chase
-        ['Atlanta Braves', 'ATL', 1.9],       // Acuña, Harris, Strider, and top-tier farm = hobby gold
-        ['Baltimore Orioles', 'BAL', 1.9],    // Gunnar, Adley, Holliday = major heat across Bowman + Flagship
-        ['Cincinnati Reds', 'CIN', 1.8],      // Elly De La Cruz, CES, Marte, Cam Collier — deep young core
-        
-        // 🔥 Tier 2: High Hobby Appeal (1.4–1.75)
-        ['Seattle Mariners', 'SEA', 1.7],     // Julio Rodríguez = top-tier pull. Strong Bowman rookies
-        ['Texas Rangers', 'TEX', 1.7],        // World Series champs + Carter, Langford, and big bats
-        ['Chicago Cubs', 'CHC', 1.6],         // Crow-Armstrong + huge market = steady demand
-        ['Detroit Tigers', 'DET', 1.6],       // Jobe, Jung, Keith, Meadows — big Bowman presence
-        ['Tampa Bay Rays', 'TB', 1.5],        // Wander + tons of prospect hits; sneaky good in breaks
-        ['San Diego Padres', 'SD', 1.5],      // Tatis, Jackson Merrill, big west coast market
-        ['Boston Red Sox', 'BOS', 1.5],       // Strong hobby base + Marcelo Mayer, Roman Anthony
-        ['Pittsburgh Pirates', 'PIT', 1.4],   // Paul Skenes + Termarr Johnson = major prospect chase
-        
-        // 💥 Tier 3: Solid Mid-Tier Teams (1.1–1.4)
-        ['Arizona Diamondbacks', 'ARI', 1.4], // Carroll + Lawlar + NL champs boost
-        ['New York Mets', 'NYM', 1.3],        // Strong fanbase, inconsistent hobby returns
-        ['St. Louis Cardinals', 'STL', 1.3],  // Classic brand, Walker, Winn, and big legacy
-        ['Cleveland Guardians', 'CLE', 1.2],  // Espino, Manzardo, and depth in prospects
-        ['Toronto Blue Jays', 'TOR', 1.2],    // Vladdy Jr., Schneider, and upside youth
-        ['Milwaukee Brewers', 'MIL', 1.2],    // Chourio hobby heat, Lauer, Quero, etc
-        ['Chicago White Sox', 'CWS', 1.1],    // Colson Montgomery + Oscar Colás = prospect appeal
-        ['Philadelphia Phillies', 'PHI', 1.1], // Harper, Bohm, Painter = occasional spike
-        
-        // 🧊 Tier 4: Low-Mid Market (0.8–1.0)
-        ['Miami Marlins', 'MIA', 1.0],        // Pérez & prospects help, but hobby base small
-        ['Los Angeles Angels', 'LAA', 1.0],   // No more Ohtani = hobby pull drop. Neto + O'Hoppe help
-        ['Houston Astros', 'HOU', 0.9],       // Aging stars, few rookies; strong in past, now cooling
-        ['San Francisco Giants', 'SF', 0.9],  // Weak rookie presence lately, solid legacy
-        ['Washington Nationals', 'WAS', 0.9], // Dylan Crews might help this long-term
-        ['Kansas City Royals', 'KC', 0.9],    // Witt is strong, but not much hobby love overall
-        
-        // ❄️ Tier 5: Low-Demand Teams (0.5–0.8)
-        ['Colorado Rockies', 'COL', 0.8],     // Weak market, few hot rookies
-        ['Minnesota Twins', 'MIN', 0.8],      // Brooks Lee and Lewis offer some upside
-        ['Oakland Athletics', 'OAK', 0.7]     // Very small hobby audience, almost no current chase
-    ];
-    
-    // Create teams reference table with popularity multiplier and notes
+    // Create teams reference table with updated popularity multiplier range
     $create_teams_table = "
     CREATE TABLE IF NOT EXISTS `teams` (
         `id` int(11) NOT NULL AUTO_INCREMENT,
         `sport` enum('NFL','MLB','NBA','NHL') NOT NULL,
         `team_name` varchar(100) NOT NULL,
         `team_code` varchar(10) NOT NULL,
-        `popularity_multiplier` decimal(4,2) NOT NULL DEFAULT 1.00,
+        `popularity_multiplier` decimal(4,1) NOT NULL DEFAULT 2.0,
         `notes` text DEFAULT NULL,
         `is_active` tinyint(1) NOT NULL DEFAULT 1,
         PRIMARY KEY (`id`),
@@ -178,8 +90,12 @@ try {
     $columnCheck = $pdo->query("SHOW COLUMNS FROM teams LIKE 'popularity_multiplier'");
     if ($columnCheck->rowCount() == 0) {
         // Add the popularity_multiplier column
-        $pdo->exec("ALTER TABLE teams ADD COLUMN popularity_multiplier decimal(4,2) NOT NULL DEFAULT 1.00 AFTER team_code");
+        $pdo->exec("ALTER TABLE teams ADD COLUMN popularity_multiplier decimal(4,1) NOT NULL DEFAULT 2.0 AFTER team_code");
         echo "Added popularity_multiplier column to teams table<br>";
+    } else {
+        // Update existing column to support 5.0 max
+        $pdo->exec("ALTER TABLE teams MODIFY popularity_multiplier decimal(4,1) NOT NULL DEFAULT 2.0");
+        echo "Updated popularity_multiplier column to support 5x scale<br>";
     }
     
     // Check if notes column exists, if not add it
@@ -198,6 +114,94 @@ try {
         echo "Added custom_modifier column to breaks table<br>";
     }
     
+    // NFL teams with updated 5x popularity multipliers
+    $nfl_teams = [
+        // 🔥 Tier 1: Premium Teams (4.5-5.0)
+        ['Kansas City Chiefs', 'KC', 5.0],
+        ['San Francisco 49ers', 'SF', 4.8],
+        ['Chicago Bears', 'CHI', 4.7],
+        ['Detroit Lions', 'DET', 4.6],
+        ['Houston Texans', 'HOU', 4.5],
+        
+        // 🔥 Tier 2: High-Demand Teams (3.5-4.4)
+        ['Philadelphia Eagles', 'PHI', 4.3],
+        ['Cincinnati Bengals', 'CIN', 4.2],
+        ['Buffalo Bills', 'BUF', 4.0],
+        ['Minnesota Vikings', 'MIN', 3.9],
+        ['Pittsburgh Steelers', 'PIT', 3.8],
+        ['Green Bay Packers', 'GB', 3.7],
+        ['Baltimore Ravens', 'BAL', 3.6],
+        ['Atlanta Falcons', 'ATL', 3.5],
+        
+        // 💥 Tier 3: Popular Teams (2.5-3.4)
+        ['Dallas Cowboys', 'DAL', 3.3],
+        ['Indianapolis Colts', 'IND', 3.2],
+        ['Arizona Cardinals', 'ARI', 3.1],
+        ['Los Angeles Chargers', 'LAC', 3.0],
+        ['New York Jets', 'NYJ', 2.9],
+        ['Tennessee Titans', 'TEN', 2.8],
+        ['New York Giants', 'NYG', 2.7],
+        ['Denver Broncos', 'DEN', 2.6],
+        ['Cleveland Browns', 'CLE', 2.5],
+        
+        // 🧊 Tier 4: Standard Teams (1.5-2.4)
+        ['Los Angeles Rams', 'LAR', 2.3],
+        ['Seattle Seahawks', 'SEA', 2.2],
+        ['Tampa Bay Buccaneers', 'TB', 2.1],
+        ['Washington Commanders', 'WAS', 2.0],
+        ['New England Patriots', 'NE', 1.9],
+        ['Carolina Panthers', 'CAR', 1.8],
+        ['Jacksonville Jaguars', 'JAX', 1.7],
+        ['Las Vegas Raiders', 'LV', 1.6],
+        ['New Orleans Saints', 'NO', 1.5],
+        
+        // ❄️ Tier 5: Value Teams (1.0-1.4)
+        ['Miami Dolphins', 'MIA', 1.2]
+    ];
+    
+    // MLB teams with updated 5x popularity multipliers
+    $mlb_teams = [
+        // 🔥 Tier 1: Premium Teams (4.5-5.0)
+        ['New York Yankees', 'NYY', 5.0],
+        ['Los Angeles Dodgers', 'LAD', 4.9],
+        ['Baltimore Orioles', 'BAL', 4.8],
+        ['Atlanta Braves', 'ATL', 4.7],
+        ['Cincinnati Reds', 'CIN', 4.5],
+        
+        // 🔥 Tier 2: High Hobby Appeal (3.5-4.4)
+        ['Seattle Mariners', 'SEA', 4.3],
+        ['Texas Rangers', 'TEX', 4.2],
+        ['Detroit Tigers', 'DET', 4.1],
+        ['San Diego Padres', 'SD', 4.0],
+        ['Chicago Cubs', 'CHC', 3.9],
+        ['Tampa Bay Rays', 'TB', 3.8],
+        ['Boston Red Sox', 'BOS', 3.7],
+        ['Pittsburgh Pirates', 'PIT', 3.6],
+        ['Arizona Diamondbacks', 'ARI', 3.5],
+        
+        // 💥 Tier 3: Solid Mid-Tier Teams (2.5-3.4)
+        ['New York Mets', 'NYM', 3.3],
+        ['St. Louis Cardinals', 'STL', 3.2],
+        ['Cleveland Guardians', 'CLE', 3.1],
+        ['Toronto Blue Jays', 'TOR', 3.0],
+        ['Milwaukee Brewers', 'MIL', 2.9],
+        ['Philadelphia Phillies', 'PHI', 2.8],
+        ['Chicago White Sox', 'CWS', 2.7],
+        ['Houston Astros', 'HOU', 2.6],
+        ['Washington Nationals', 'WAS', 2.5],
+        
+        // 🧊 Tier 4: Standard Teams (1.5-2.4)
+        ['San Francisco Giants', 'SF', 2.3],
+        ['Miami Marlins', 'MIA', 2.2],
+        ['Los Angeles Angels', 'LAA', 2.1],
+        ['Kansas City Royals', 'KC', 2.0],
+        ['Minnesota Twins', 'MIN', 1.9],
+        ['Colorado Rockies', 'COL', 1.8],
+        
+        // ❄️ Tier 5: Value Teams (1.0-1.4)
+        ['Oakland Athletics', 'OAK', 1.5]
+    ];
+    
     // Insert NFL teams using prepared statements (with REPLACE to handle updates)
     $nfl_insert = "REPLACE INTO teams (sport, team_name, team_code, popularity_multiplier) VALUES (?, ?, ?, ?)";
     $nfl_stmt = $pdo->prepare($nfl_insert);
@@ -212,12 +216,44 @@ try {
         $mlb_stmt->execute(['MLB', $team[0], $team[1], $team[2]]);
     }
     
-    echo "Database tables created successfully!<br>";
-    echo "NFL teams: " . count($nfl_teams) . " inserted<br>";
-    echo "MLB teams: " . count($mlb_teams) . " inserted<br>";
-    echo "<a href='calculator.php'>Go to Break Calculator</a>";
+    echo "<div style='background: #d4edda; color: #155724; padding: 15px; border: 1px solid #c3e6cb; border-radius: 5px; margin: 20px 0;'>";
+    echo "<h3>✅ Database Setup Complete!</h3>";
+    echo "Database tables created/updated successfully with 5x multiplier scale!<br>";
+    echo "NFL teams: " . count($nfl_teams) . " inserted/updated<br>";
+    echo "MLB teams: " . count($mlb_teams) . " inserted/updated<br><br>";
+    
+    echo "<strong>New Multiplier Ranges:</strong><br>";
+    echo "🔥 Premium Tier: 4.5-5.0x (Chiefs, Yankees level)<br>";
+    echo "🔥 High-Demand Tier: 3.5-4.4x (Strong popularity)<br>";
+    echo "💥 Popular Tier: 2.5-3.4x (Above average demand)<br>";
+    echo "🧊 Standard Tier: 1.5-2.4x (Average demand)<br>";
+    echo "❄️ Value Tier: 1.0-1.4x (Below average)<br><br>";
+    
+    echo "<a href='calculator.php' style='background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px;'>Go to Break Calculator</a>";
+    echo "<a href='teams.php' style='background: #28a745; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;'>Manage Team Multipliers</a>";
+    echo "</div>";
     
 } catch (PDOException $e) {
-    echo "Database error: " . $e->getMessage();
+    echo "<div style='background: #f8d7da; color: #721c24; padding: 15px; border: 1px solid #f5c6cb; border-radius: 5px; margin: 20px 0;'>";
+    echo "<h3>❌ Database Error</h3>";
+    echo "Error: " . $e->getMessage();
+    echo "</div>";
 }
 ?>
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Database Setup Complete</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Break Calculator Database Setup</h1>
+        <p>The database setup has been completed. Check the results above and use the navigation links to proceed.</p>
+    </div>
+</body>
+</html>

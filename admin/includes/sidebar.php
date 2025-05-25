@@ -60,7 +60,7 @@
             
             <!-- Integrations Dropdown -->
             <li class="nav-item dropdown">
-                <a href="#" class="nav-link dropdown-toggle <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/whatnot/') !== false ? 'active' : ''; ?>" 
+                <a href="#" class="nav-link dropdown-toggle <?php echo (strpos($_SERVER['REQUEST_URI'], '/admin/whatnot/') !== false || strpos($_SERVER['REQUEST_URI'], '/admin/ebay/') !== false) ? 'active' : ''; ?>" 
                    id="integrationsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="fas fa-plug me-2"></i>
                     Integrations
@@ -69,8 +69,8 @@
                     <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/whatnot/') !== false ? 'active' : ''; ?>" href="/admin/whatnot/settings.php">
                         <i class="fas fa-video me-2"></i> Whatnot
                     </a></li>
-                    <li><a class="dropdown-item disabled" href="#" title="Coming Soon">
-                        <i class="fab fa-ebay me-2"></i> eBay <small>(Soon)</small>
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/ebay/') !== false ? 'active' : ''; ?>" href="/admin/ebay/settings.php">
+                        <i class="fab fa-ebay me-2"></i> eBay <span class="badge bg-success ms-1">New!</span>
                     </a></li>
                     <li><a class="dropdown-item disabled" href="#" title="Coming Soon">
                         <i class="fab fa-paypal me-2"></i> PayPal <small>(Soon)</small>
