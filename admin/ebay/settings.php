@@ -418,6 +418,99 @@ function testBasicConnectivity() {
 }
 </script>';
 
+function initiateEbayOAuth() {
+    $clientId = getSetting('ebay_app_id');
+    $clientSecret = getSetting('ebay_cert_id');
+    $ruName = getSetting('ebay_ru_name');
+    $sandbox = (bool)getSetting('ebay_sandbox_mode');
+    
+    if (!$clientId || !$clientSecret || !$ruName) {
+        return false;
+    }
+    
+    require_once 'callback.php';
+    $oauth = new EbayOAuth($clientId, $clientSecret, $ruName, $sandbox);
+    
+    // Generate a state parameter for security
+    $state = bin2hex(random_bytes(16));
+    $_SESSION['ebay_oauth_state'] = $state;
+    
+    return $oauth->getAuthUrl($state);
+}
+
+// Check if token needs refresh
+function checkAndRefreshToken() {
+    $tokenExpires = (int)getSetting('ebay_token_expires', 0);
+    $refreshToken = getSetting('ebay_refresh_token');
+    
+    // If token expires in less than 5 minutes, refresh it
+    if ($tokenExpires > 0 && $tokenExpires < (time() + 300) && !empty($refreshToken)) {
+        $clientId = getSetting('ebay_app_id');
+        $clientSecret = getSetting('ebay_cert_id');
+        $ruName = getSetting('ebay_ru_name');
+        $sandbox = (bool)getSetting('ebay_sandbox_mode');
+        
+        require_once 'callback.php';
+        $oauth = new EbayOAuth($clientId, $clientSecret, $ruName, $sandbox);
+        
+        $tokenData = $oauth->refreshAccessToken($refreshToken);
+        
+        if ($tokenData && isset($tokenData['access_token'])) {
+            updateSetting('ebay_access_token', $tokenData['access_token']);
+            updateSetting('ebay_refresh_token', $tokenData['refresh_token'] ?? $refreshToken);
+            updateSetting('ebay_token_expires', time() + ($tokenData['expires_in'] ?? 7200));
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// Add this to the form submission handling section
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['action'])) {
+        switch ($_POST['action']) {
+            // ... existing cases ...
+            
+            case 'disconnect_ebay':
+                // Clear OAuth tokens
+                updateSetting('ebay_access_token', '');
+                updateSetting('ebay_refresh_token', '');
+                updateSetting('ebay_token_expires', '0');
+                updateSetting('ebay_oauth_connected', '0');
+                updateSetting('ebay_user_token', ''); // Clear old user token too
+                
+                $_SESSION['success_message'] = 'Disconnected from eBay successfully.';
+                header('Location: settings.php');
+                exit;
+                break;
+                
+            case 'connect_ebay':
+                $authUrl = initiateEbayOAuth();
+                if ($authUrl) {
+                    header('Location: ' . $authUrl);
+                    exit;
+                } else {
+                    $_SESSION['error_message'] = 'Please configure your eBay API credentials first.';
+                }
+                break;
+        }
+    }
+}
+
+// Check OAuth connection status
+$isOAuthConnected = (bool)getSetting('ebay_oauth_connected', 0);
+$tokenExpires = (int)getSetting('ebay_token_expires', 0);
+$oauthStatus = 'disconnected';
+
+if ($isOAuthConnected && $tokenExpires > time()) {
+    $oauthStatus = 'connected';
+    checkAndRefreshToken(); // Auto-refresh if needed
+} elseif ($isOAuthConnected) {
+    $oauthStatus = 'expired';
+}
+
+
 // Include admin header
 include_once '../includes/header.php';
 ?>
@@ -512,6 +605,99 @@ include_once '../includes/header.php';
                 </form>
             </div>
         </div>
+        
+        <div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold">eBay Account Connection</h6>
+    </div>
+    <div class="card-body">
+        <?php if ($oauthStatus === 'connected'): ?>
+            <div class="alert alert-success">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>Connected to eBay</strong>
+                        <br>
+                        <small>Token expires: <?php echo date('M j, Y g:i A', $tokenExpires); ?></small>
+                    </div>
+                    <form method="post" class="d-inline">
+                        <input type="hidden" name="action" value="disconnect_ebay">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to disconnect from eBay?');">
+                            <i class="fas fa-unlink me-1"></i> Disconnect
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-2"><strong>Connection Status:</strong> <span class="badge bg-success">Active</span></p>
+                    <p class="mb-2"><strong>Last Verified:</strong> <?php echo getSetting('ebay_oauth_last_verified', 'Never'); ?></p>
+                </div>
+                <div class="col-md-6">
+                    <form method="post" class="d-inline">
+                        <input type="hidden" name="action" value="sync_listings">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-sync me-1"></i> Sync Listings Now
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+        <?php elseif ($oauthStatus === 'expired'): ?>
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Token Expired</strong> - Please reconnect to continue using eBay features.
+            </div>
+            <form method="post">
+                <input type="hidden" name="action" value="connect_ebay">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fab fa-ebay me-1"></i> Reconnect to eBay
+                </button>
+            </form>
+            
+        <?php else: ?>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                Connect your eBay account to sync listings and access advanced features.
+            </div>
+            
+            <div class="mb-3">
+                <label for="ebay_ru_name" class="form-label">Redirect URI Name (RuName) *</label>
+                <input type="text" class="form-control" id="ebay_ru_name" name="ebay_ru_name" 
+                       value="<?php echo htmlspecialchars(getSetting('ebay_ru_name', '')); ?>" 
+                       placeholder="Your eBay RuName from Developer Account">
+                <div class="form-text">Get this from your eBay Developer Account under "Get a Token from eBay via Your Application"</div>
+            </div>
+            
+            <?php if (!empty(getSetting('ebay_app_id')) && !empty(getSetting('ebay_cert_id')) && !empty(getSetting('ebay_ru_name'))): ?>
+                <form method="post">
+                    <input type="hidden" name="action" value="connect_ebay">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fab fa-ebay me-2"></i> Sign in with eBay
+                    </button>
+                </form>
+            <?php else: ?>
+                <p class="text-muted">Please configure your API credentials above before connecting.</p>
+            <?php endif; ?>
+        <?php endif; ?>
+        
+        <hr class="my-4">
+        
+        <h6 class="mb-3">OAuth Setup Instructions</h6>
+        <ol class="small">
+            <li>Go to your eBay Developer Account</li>
+            <li>Navigate to "User Tokens" → "Get a Token from eBay via Your Application"</li>
+            <li>Add these Redirect URIs:
+                <ul>
+                    <li><code><?php echo 'https://' . $_SERVER['HTTP_HOST']; ?>/admin/ebay/callback.php</code></li>
+                </ul>
+            </li>
+            <li>Copy your RuName and paste it above</li>
+            <li>Click "Sign in with eBay" to connect your account</li>
+        </ol>
+    </div>
+</div>
         
         <!-- Recent Listings -->
         <div class="card shadow mb-4">
