@@ -1,0 +1,249 @@
+<?php
+// sync_helper.php - Helper functions for eBay sync process
+require_once '../../includes/db.php';
+require_once '../../includes/functions.php';
+
+/**
+ * Smart eBay Sync Function
+ * This function compares existing listings with new ones from eBay
+ * and only updates what's needed while preserving categories and favorites
+ * 
+ * @param PDO $pdo Database connection
+ * @param bool $force_token_refresh Whether to force token refresh
+ * @return array Result of the sync operation
+ */
+function smartEbaySync($pdo = null) {
+    $start_time = microtime(true);
+    error_log("Starting smartEbaySync");
+    
+    try {
+        // Create PDO connection if not provided
+        $close_pdo = false;
+        if ($pdo === null) {
+            require_once(dirname(__DIR__, 2) . '/includes/db.php');
+            $pdo = getDBConnection();
+            $close_pdo = true;
+        }
+        
+        // Include token refresh helper
+        require_once 'token_refresh.php';
+        
+        // Ensure we have a valid access token
+        if (!ensureValidEbayAccessToken(true)) {
+            error_log("Failed to ensure valid eBay access token");
+            return ["success" => false, "message" => "Failed to ensure valid eBay access token"];
+        }
+        
+        // Get the access token and seller ID
+        $access_token = getSetting('ebay_access_token');
+        $seller_id = getSetting('ebay_seller_id');
+        
+        if (empty($access_token) || empty($seller_id)) {
+            error_log("Missing required eBay settings");
+            return ["success" => false, "message" => "Missing required eBay settings"];
+        }
+        
+        // Ensure the ebay_listings table exists with all required columns
+        ensureEbayListingsTable($pdo);
+        
+        // STEP 1: First, reset all listings to have status='inactive'
+        // This will help us identify which ones are still active after the sync
+        // But don't change the status of listings that are already marked as 'sold'
+        $pdo->exec("UPDATE ebay_listings SET status = 'inactive' WHERE status != 'sold'");
+        error_log("Reset active listings to inactive status (preserved sold listings)");
+        
+        // STEP 2: Fetch all current eBay listings
+        $found_listings = fetchEbayListings($pdo, $access_token, $seller_id);
+        
+        if (empty($found_listings)) {
+            error_log("WARNING: No eBay listings found. This might be an API issue. Not making any changes to the database.");
+            if ($close_pdo) {
+                $pdo = null;
+            }
+            return ["success" => false, "message" => "No eBay listings found. This might be an API issue."];
+        }
+        
+        error_log("Fetched " . count($found_listings) . " listings from eBay");
+        
+        // Track statistics
+        $updated_count = 0;
+        $new_count = 0;
+        
+        // STEP 3: Process each active listing from eBay
+        foreach ($found_listings as $listing) {
+            try {
+                $sku = 'EBAY-' . $listing['item_id'];
+                
+                // Check if this listing already exists
+                $stmt = $pdo->prepare("SELECT * FROM ebay_listings WHERE sku = ?");
+                $stmt->execute([$sku]);
+                $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                // Prepare data for insert/update
+                $listing_data = [
+                    'sku' => $sku,
+                    'title' => $listing['title'],
+                    'price' => $listing['price'],
+                    'currency' => 'USD',
+                    'quantity' => max(1, intval($listing['quantity'])), // Ensure at least 1 quantity
+                    'seller_id' => $seller_id,
+                    'image_url' => $listing['image_url'],
+                    'status' => 'active',
+                    'last_updated' => date('Y-m-d H:i:s')
+                ];
+                
+                // Add description if available
+                if (!empty($listing['description'])) {
+                    $listing_data['description'] = $listing['description'];
+                }
+                
+                if ($existing) {
+                    // Update existing listing
+                    $fields = [];
+                    $params = [];
+                    
+                    // Always update these fields
+                    $fields[] = "status = 'active'";
+                    $fields[] = "quantity = :quantity";
+                    $fields[] = "price = :price";
+                    $fields[] = "last_updated = :last_updated";
+                    $fields[] = "title = :title";
+                    
+                    // Only update image if we have one
+                    if (!empty($listing['image_url'])) {
+                        $fields[] = "image_url = :image_url";
+                    } else {
+                        unset($listing_data['image_url']);
+                    }
+                    
+                    // Only update description if we have one
+                    if (!empty($listing['description'])) {
+                        $fields[] = "description = :description";
+                    } else {
+                        unset($listing_data['description']);
+                    }
+                    
+                    // Build the query
+                    $query = "UPDATE ebay_listings SET " . implode(", ", $fields) . " WHERE sku = :sku";
+                    
+                    try {
+                        $stmt = $pdo->prepare($query);
+                        $stmt->execute($listing_data);
+                        $updated_count++;
+                    } catch (Exception $e) {
+                        error_log("Error updating listing {$sku}: " . $e->getMessage());
+                    }
+                } else {
+                    // New listing, insert it
+                    $fields = array_keys($listing_data);
+                    $placeholders = array_map(function($field) { return ":$field"; }, $fields);
+                    
+                    $query = "INSERT INTO ebay_listings (" . implode(", ", $fields) . ") 
+                              VALUES (" . implode(", ", $placeholders) . ")";
+                    
+                    try {
+                        $stmt = $pdo->prepare($query);
+                        $stmt->execute($listing_data);
+                        $new_count++;
+                    } catch (Exception $e) {
+                        error_log("Error inserting new listing {$sku}: " . $e->getMessage());
+                    }
+                }
+            } catch (Exception $e) {
+                error_log("Error processing listing: " . $e->getMessage());
+                // Continue with next listing
+            }
+        }
+        
+        // STEP 4: Handle listings that are still marked as inactive (not found in current eBay feed)
+        // Count inactive listings with categories
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM ebay_listings WHERE status = 'inactive' AND (category IS NOT NULL AND category != '')");
+        $categorized_count = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // Count inactive listings that are favorites
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM ebay_listings WHERE status = 'inactive' AND is_favorite = 1");
+        $favorited_count = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // Mark categorized or favorited inactive listings as sold (if they're not already sold)
+        $pdo->exec("UPDATE ebay_listings SET status = 'sold', quantity = 0 
+                   WHERE status = 'inactive' AND (category IS NOT NULL AND category != '' OR is_favorite = 1)");
+        
+        // Count remaining inactive listings that will be deleted
+        $stmt = $pdo->query("SELECT COUNT(*) as count FROM ebay_listings WHERE status = 'inactive'");
+        $deleted_count = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // Only delete listings that are inactive AND not sold
+        // This ensures we keep sold listings in the database
+        $pdo->exec("DELETE FROM ebay_listings WHERE status = 'inactive'");
+        
+        error_log("Marked $categorized_count categorized and $favorited_count favorited listings as sold");
+        error_log("Deleted $deleted_count uncategorized and unfavorited inactive listings");
+        
+        // STEP 5: Final check - ensure all active listings have quantity > 0
+        $pdo->exec("UPDATE ebay_listings SET quantity = 1 WHERE status = 'active' AND quantity < 1");
+        
+        // Calculate preserved count
+        $preserved_count = $categorized_count + $favorited_count;
+        
+        // Update last sync time
+        updateSetting('ebay_last_sync', date('Y-m-d H:i:s'));
+        
+        // Calculate sync duration
+        $sync_duration = round(microtime(true) - $start_time, 2);
+        
+        // Log the final counts
+        error_log("eBay sync completed in $sync_duration seconds");
+        error_log("eBay sync summary: $new_count new, $updated_count updated, $preserved_count preserved, $deleted_count deleted");
+        
+        return [
+            "success" => true,
+            "message" => "eBay sync completed successfully",
+            "new_count" => $new_count,
+            "updated_count" => $updated_count,
+            "preserved_count" => $preserved_count,
+            "deleted_count" => $deleted_count,
+            "duration" => $sync_duration
+        ];
+    }
+    catch (Exception $e) {
+        $error_message = $e->getMessage();
+        $error_trace = $e->getTraceAsString();
+        $error_file = $e->getFile();
+        $error_line = $e->getLine();
+        
+        // Log detailed error information
+        error_log('eBay sync error: ' . $error_message);
+        error_log('Error location: ' . $error_file . ' on line ' . $error_line);
+        error_log('Stack trace: ' . $error_trace);
+        
+        // If token refresh failed, update last attempt time to prevent excessive retries
+        if (strpos($error_message, 'token') !== false) {
+            updateSetting('ebay_last_token_refresh', date('Y-m-d H:i:s'));
+        }
+        
+        // Get additional context about the error
+        $context = [];
+        
+        // Check token status
+        $access_token = getSetting('ebay_access_token');
+        $context['token_exists'] = !empty($access_token);
+        
+        // Check seller ID
+        $seller_id = getSetting('ebay_seller_id');
+        $context['seller_id_exists'] = !empty($seller_id);
+        
+        // Check if database connection is working
+        $context['db_connected'] = ($pdo !== null);
+        
+        return [
+            'success' => false,
+            'message' => 'eBay sync failed: ' . $error_message,
+            'details' => [
+                'error' => $error_message,
+                'file' => $error_file,
+                'line' => $error_line,
+                'trace' => $error_trace
+            ]
+        ];
+    }
+}

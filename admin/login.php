@@ -9,18 +9,81 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Function to log users in
-function loginUser($user_id, $username, $role) {
+function loginUser($user_id, $username, $role, $remember = false) {
     $_SESSION['user_id'] = $user_id;
     $_SESSION['username'] = $username;
     $_SESSION['user_role'] = $role;
     $_SESSION['logged_in_time'] = time();
+    
+    // Set remember me cookie if requested
+    if ($remember) {
+        // Generate a secure token
+        $token = bin2hex(random_bytes(32));
+        
+        // Store token in database
+        global $pdo;
+        try {
+            // First, delete any existing remember tokens for this user
+            $delete = $pdo->prepare("DELETE FROM remember_tokens WHERE user_id = :user_id");
+            $delete->bindParam(':user_id', $user_id);
+            $delete->execute();
+            
+            // Insert new token
+            $expires = date('Y-m-d H:i:s', strtotime('+30 days'));
+            $insert = $pdo->prepare("INSERT INTO remember_tokens (user_id, token, expires) VALUES (:user_id, :token, :expires)");
+            $insert->bindParam(':user_id', $user_id);
+            $insert->bindParam(':token', $token);
+            $insert->bindParam(':expires', $expires);
+            $insert->execute();
+            
+            // Set cookies
+            setcookie('remember_user', $user_id, time() + (86400 * 30), '/', '', false, true); // 30 days
+            setcookie('remember_token', $token, time() + (86400 * 30), '/', '', false, true); // 30 days
+        } catch (PDOException $e) {
+            // Silent fail - don't block login if remember me fails
+        }
+    }
 }
 
-// Check if user is already logged in
+// Check if user is already logged in via session
 if (isset($_SESSION['user_id'])) {
     // Redirect to dashboard
     header('Location: index.php');
     exit;
+}
+
+// Check for remember me cookie
+if (!isset($_SESSION['user_id']) && isset($_COOKIE['remember_user']) && isset($_COOKIE['remember_token'])) {
+    $user_id = $_COOKIE['remember_user'];
+    $token = $_COOKIE['remember_token'];
+    
+    try {
+        // Verify token
+        $query = "SELECT u.id, u.username, u.role FROM remember_tokens r 
+                  JOIN users u ON r.user_id = u.id 
+                  WHERE r.user_id = :user_id AND r.token = :token AND r.expires > NOW()";
+        $stmt = $pdo->prepare($query);
+        $stmt->bindParam(':user_id', $user_id);
+        $stmt->bindParam(':token', $token);
+        $stmt->execute();
+        
+        $user = $stmt->fetch();
+        
+        if ($user) {
+            // Valid token, log user in
+            loginUser($user['id'], $user['username'], $user['role']);
+            
+            // Redirect to dashboard
+            header('Location: index.php');
+            exit;
+        } else {
+            // Invalid or expired token, clear cookies
+            setcookie('remember_user', '', time() - 3600, '/');
+            setcookie('remember_token', '', time() - 3600, '/');
+        }
+    } catch (PDOException $e) {
+        // Silent fail - continue to login page
+    }
 }
 
 // Check for timeout message
@@ -34,6 +97,7 @@ if (isset($_SESSION['timeout_message'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = trim($_POST['username']);
     $password = $_POST['password'];
+    $remember = isset($_POST['remember_me']);
     
     // Validate inputs
     $errors = [];
@@ -58,7 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if ($user && password_verify($password, $user['password'])) {
                 // Login successful
-                loginUser($user['id'], $user['username'], $user['role']);
+                loginUser($user['id'], $user['username'], $user['role'], $remember);
                 
                 // Log the successful login
                 try {

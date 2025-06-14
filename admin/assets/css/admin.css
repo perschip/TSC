@@ -8,6 +8,7 @@ body {
     background-color: #f8f9fa;
     font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     color: #212529;
+    overflow-x: hidden; /* Prevent horizontal scrolling */
 }
 
 /* Typography */
@@ -31,10 +32,12 @@ h1, h2, h3, h4, h5, h6 {
     color: #fff;
     position: fixed;
     width: 250px;
-    z-index: 100;
+    z-index: 1030; /* Higher z-index to ensure it appears above other content */
     top: 0;
     bottom: 0;
     left: 0;
+    overflow-y: auto; /* Allow scrolling for long sidebar content */
+    transition: transform 0.3s ease, width 0.3s ease;
 }
 
 .sidebar .nav-link {
@@ -105,20 +108,35 @@ h1, h2, h3, h4, h5, h6 {
 /* Main Content Area */
 .main-content {
     margin-left: 250px;
+    transition: margin-left 0.3s ease;
+    width: calc(100% - 250px); /* Ensure content width adjusts properly */
+    max-width: 100%;
+    padding-right: 15px; /* Add padding to prevent content from touching the edge */
+    padding-bottom: 2rem; /* Add bottom padding for better spacing */
 }
 
 @media (max-width: 991.98px) {
     .sidebar {
         transform: translateX(-100%);
-        transition: transform 0.3s ease;
+        box-shadow: none;
     }
     
     .sidebar.show {
         transform: translateX(0);
+        box-shadow: 0 0 15px rgba(0,0,0,0.2);
     }
     
     .main-content {
         margin-left: 0;
+        width: 100%;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 575.98px) {
+    .main-content {
+        padding-left: 10px;
+        padding-right: 10px;
     }
 }
 
@@ -128,6 +146,19 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
     padding: 1rem 0;
     margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+/* Ensure header elements stack properly on mobile */
+.top-header h1 {
+    margin-bottom: 0.5rem;
+    word-break: break-word;
+}
+
+.top-header .btn-toolbar {
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
 /* ---------- Components ---------- */
@@ -208,6 +239,25 @@ label {
 
 .table-hover tbody tr:hover {
     background-color: rgba(0, 123, 255, 0.05);
+}
+
+/* Make tables responsive */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Add horizontal scrolling for tables on small screens */
+@media (max-width: 767.98px) {
+    .table-responsive {
+        display: block;
+        width: 100%;
+        overflow-x: auto;
+    }
+    
+    .table {
+        min-width: 500px; /* Ensure tables have a minimum width */
+    }
 }
 
 /* Post Status Badges */
@@ -327,10 +377,13 @@ label {
     align-items: center;
     z-index: 9999;
     visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
 #loading-overlay.show {
     visibility: visible;
+    opacity: 1;
 }
 
 /* Whatnot Status Indicators */
@@ -446,7 +499,7 @@ label {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    max-width: 500px;
+    max-width: 100%; /* Allow it to adjust to container width */
 }
 
 /* Footer styling for the public site */
@@ -473,5 +526,53 @@ label {
     
     .top-header h1 {
         font-size: 1.5rem;
+    }
+    
+    /* Improve card layouts on mobile */
+    .card {
+        overflow: hidden;
+    }
+    
+    /* Better form controls on mobile */
+    .form-control, .btn {
+        font-size: 16px; /* Prevent iOS zoom on input */
+    }
+    
+    /* Adjust padding for content */
+    .card-body {
+        padding: 1rem;
+    }
+    
+    /* Make dropdowns more touch-friendly */
+    .dropdown-item {
+        padding: 0.5rem 1rem;
+    }
+}
+
+/* Improve responsiveness for extra small devices */
+@media (max-width: 575.98px) {
+    .container-fluid {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    /* Stack buttons in toolbars */
+    .btn-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .btn-toolbar .btn-group {
+        margin-bottom: 0.5rem;
+        width: 100%;
+    }
+    
+    .btn-toolbar .btn-group .btn {
+        flex: 1;
+    }
+    
+    /* Adjust chart containers */
+    .chart-container {
+        height: 250px;
     }
 }

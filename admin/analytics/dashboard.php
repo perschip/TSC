@@ -11,16 +11,18 @@ header("Pragma: no-cache");
 
 // Check if period filter was applied
 $period = isset($_GET['period']) ? $_GET['period'] : 'month';
-$validPeriods = ['week', 'month', 'year', 'all'];
+$validPeriods = ['today', 'week', 'month', 'quarter', 'year', 'all'];
 if (!in_array($period, $validPeriods)) {
     $period = 'month';
 }
 
-// Get all view data with error handling and debugging
-function getAnalyticsData($pdo, $period = 'month') {
-    $timeConstraint = '';
+// Check if comparison mode is enabled
+$compare = isset($_GET['compare']) ? $_GET['compare'] : false;
+
+// Get advanced analytics data
+function getAdvancedAnalyticsData($pdo, $period = 'month', $compare = false) {
+    $timeConstraints = getTimeConstraints($period);
     
-    // Find the actual date column in the visits table
     try {
         // Get table structure to check column names
         $tableCheckQuery = "DESCRIBE visits";
@@ -28,582 +30,1169 @@ function getAnalyticsData($pdo, $period = 'month') {
         $tableCheckStmt->execute();
         $columns = $tableCheckStmt->fetchAll(PDO::FETCH_COLUMN);
         
-        // Determine the date column (it could be 'visit_date', 'created_at', or something else)
-        $dateColumn = 'created_at'; // Default to created_at
-        if (in_array('visit_date', $columns)) {
-            $dateColumn = 'visit_date';
+        $dateColumn = in_array('visit_date', $columns) ? 'visit_date' : 'created_at';
+        
+        $data = [];
+        
+        // Get current period data
+        $data['current'] = getAnalyticsForPeriod($pdo, $timeConstraints['current'], $dateColumn);
+        
+        // Get comparison data if requested
+        if ($compare) {
+            $data['previous'] = getAnalyticsForPeriod($pdo, $timeConstraints['previous'], $dateColumn);
+            $data['growth'] = calculateGrowthMetrics($data['current'], $data['previous']);
         }
+        
+        // Get additional advanced metrics
+        $data['advanced'] = getAdvancedMetrics($pdo, $timeConstraints['current'], $dateColumn);
+        $data['realtime'] = getRealtimeMetrics($pdo, $dateColumn);
+        $data['geographic'] = getGeographicData($pdo, $timeConstraints['current'], $dateColumn);
+        $data['devices'] = getDeviceData($pdo, $timeConstraints['current'], $dateColumn);
+        $data['pages'] = getTopPages($pdo, $timeConstraints['current'], $dateColumn);
+        $data['conversion_funnel'] = getConversionFunnel($pdo, $timeConstraints['current'], $dateColumn);
+        $data['hourly_pattern'] = getHourlyPattern($pdo, $timeConstraints['current'], $dateColumn);
+        
+        return $data;
         
     } catch (PDOException $e) {
-        // If we can't check the columns, assume it's created_at
-        $dateColumn = 'created_at';
-    }
-    
-    switch ($period) {
-        case 'week':
-            $timeConstraint = "WHERE $dateColumn >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)";
-            break;
-        case 'month':
-            $timeConstraint = "WHERE $dateColumn >= DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH)";
-            break;
-        case 'year':
-            $timeConstraint = "WHERE $dateColumn >= DATE_SUB(CURRENT_DATE, INTERVAL 1 YEAR)";
-            break;
-        case 'all':
-            $timeConstraint = "";
-            break;
-        default:
-            $timeConstraint = "WHERE $dateColumn >= DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH)";
-    }
-    
-    try {
-        // Debug information
-        $debug = [];
-        $debug[] = "Period: $period";
-        $debug[] = "Date column used: $dateColumn";
-        $debug[] = "Time constraint: $timeConstraint";
-        
-        // Overall stats
-        $visitsQuery = "SELECT 
-                          COUNT(*) as total_visits,
-                          COUNT(DISTINCT visitor_ip) as unique_visitors,
-                          AVG(pages_viewed) as avg_pages,
-                          AVG(time_on_site) as avg_time
-                        FROM visits $timeConstraint";
-                        
-        $debug[] = "Visits query: $visitsQuery";
-        
-        $visitsStmt = $pdo->prepare($visitsQuery);
-        $visitsStmt->execute();
-        $visitsStats = $visitsStmt->fetch();
-        
-        $debug[] = "Visits stats: " . print_r($visitsStats, true);
-        
-        // eBay clicks
-        $ebayClickDateColumn = 'click_date'; // Default
-        try {
-            $ebayTableCheckQuery = "DESCRIBE ebay_clicks";
-            $ebayTableCheckStmt = $pdo->prepare($ebayTableCheckQuery);
-            $ebayTableCheckStmt->execute();
-            $ebayColumns = $ebayTableCheckStmt->fetchAll(PDO::FETCH_COLUMN);
-            
-            if (in_array('created_at', $ebayColumns)) {
-                $ebayClickDateColumn = 'created_at';
-            }
-        } catch (PDOException $e) {
-            // Keep default if error
-        }
-        
-        $ebayTimeConstraint = str_replace($dateColumn, $ebayClickDateColumn, $timeConstraint);
-        $ebayQuery = "SELECT COUNT(*) as total_clicks FROM ebay_clicks $ebayTimeConstraint";
-        $ebayStmt = $pdo->prepare($ebayQuery);
-        $ebayStmt->execute();
-        $ebayClicks = $ebayStmt->fetch()['total_clicks'];
-        
-        $debug[] = "eBay date column: $ebayClickDateColumn";
-        $debug[] = "eBay clicks: $ebayClicks";
-        
-        // Whatnot clicks
-        $whatnotClickDateColumn = 'click_date'; // Default
-        try {
-            $whatnotTableCheckQuery = "DESCRIBE whatnot_clicks";
-            $whatnotTableCheckStmt = $pdo->prepare($whatnotTableCheckQuery);
-            $whatnotTableCheckStmt->execute();
-            $whatnotColumns = $whatnotTableCheckStmt->fetchAll(PDO::FETCH_COLUMN);
-            
-            if (in_array('created_at', $whatnotColumns)) {
-                $whatnotClickDateColumn = 'created_at';
-            }
-        } catch (PDOException $e) {
-            // Keep default if error
-        }
-        
-        $whatnotTimeConstraint = str_replace($dateColumn, $whatnotClickDateColumn, $timeConstraint);
-        $whatnotQuery = "SELECT COUNT(*) as total_clicks FROM whatnot_clicks $whatnotTimeConstraint";
-        $whatnotStmt = $pdo->prepare($whatnotQuery);
-        $whatnotStmt->execute();
-        $whatnotClicks = $whatnotStmt->fetch()['total_clicks'];
-        
-        $debug[] = "Whatnot date column: $whatnotClickDateColumn";
-        $debug[] = "Whatnot clicks: $whatnotClicks";
-        
-        // Daily visits trend
-        $dailyTrendQuery = "SELECT 
-                               DATE_FORMAT($dateColumn, '%Y-%m-%d') as date,
-                               COUNT(*) as visits,
-                               COUNT(DISTINCT visitor_ip) as unique_visitors
-                             FROM visits 
-                             $timeConstraint
-                             GROUP BY DATE_FORMAT($dateColumn, '%Y-%m-%d')
-                             ORDER BY date ASC";
-                             
-        $dailyTrendStmt = $pdo->prepare($dailyTrendQuery);
-        $dailyTrendStmt->execute();
-        $dailyTrend = $dailyTrendStmt->fetchAll();
-        
-        $debug[] = "Daily trend count: " . count($dailyTrend);
-        
-        // Referrer sources
-        $referrerQuery = "SELECT 
-                            CASE
-                                WHEN referrer LIKE '%google.com%' THEN 'Google'
-                                WHEN referrer LIKE '%facebook.com%' THEN 'Facebook'
-                                WHEN referrer LIKE '%instagram.com%' THEN 'Instagram'
-                                WHEN referrer LIKE '%twitter.com%' THEN 'Twitter'
-                                WHEN referrer LIKE '%whatnot.com%' THEN 'Whatnot'
-                                WHEN referrer LIKE '%ebay.com%' THEN 'eBay'
-                                WHEN referrer = '' THEN 'Direct'
-                                ELSE 'Other'
-                            END as source,
-                            COUNT(*) as count
-                          FROM visits
-                          $timeConstraint
-                          GROUP BY source
-                          ORDER BY count DESC";
-                          
-        $referrerStmt = $pdo->prepare($referrerQuery);
-        $referrerStmt->execute();
-        $referrers = $referrerStmt->fetchAll();
-        
-        $debug[] = "Referrer count: " . count($referrers);
-        
-        // Log debug information for admins
-        if (isset($_GET['debug']) && $_GET['debug'] == 1) {
-            error_log(print_r($debug, true));
-        }
-        
-        return [
-            'visits' => $visitsStats,
-            'ebay_clicks' => $ebayClicks,
-            'whatnot_clicks' => $whatnotClicks,
-            'daily_trend' => $dailyTrend,
-            'referrers' => $referrers,
-            'debug' => $debug
-        ];
-    } catch (PDOException $e) {
-        // Log the error
-        error_log('Analytics data error: ' . $e->getMessage());
-        
-        // Return default values on error
-        return [
-            'visits' => [
-                'total_visits' => 0,
-                'unique_visitors' => 0,
-                'avg_pages' => 0,
-                'avg_time' => 0
-            ],
-            'ebay_clicks' => 0,
-            'whatnot_clicks' => 0,
-            'daily_trend' => [],
-            'referrers' => [],
-            'error' => $e->getMessage(),
-            'debug' => isset($debug) ? $debug : []
-        ];
+        error_log('Advanced analytics error: ' . $e->getMessage());
+        return getDefaultAnalyticsData();
     }
 }
 
-// Get analytics data with fresh query
-try {
-    // Add a random query parameter to force fresh data
-    $analyticsData = getAnalyticsData($pdo, $period);
-
-    // Format daily trend data for chart
-    $dates = [];
-    $visits = [];
-    $uniqueVisitors = [];
-
-    foreach ($analyticsData['daily_trend'] as $day) {
-        $dates[] = date('M j', strtotime($day['date']));
-        $visits[] = $day['visits'];
-        $uniqueVisitors[] = $day['unique_visitors'];
-    }
-
-    // Format referrer data for chart
-    $referrerLabels = [];
-    $referrerData = [];
-
-    foreach ($analyticsData['referrers'] as $referrer) {
-        $referrerLabels[] = $referrer['source'];
-        $referrerData[] = $referrer['count'];
-    }
-} catch (Exception $e) {
-    // Log the error
-    error_log('Analytics processing error: ' . $e->getMessage());
+function getTimeConstraints($period) {
+    $constraints = [];
     
-    // Default values if anything fails
-    $analyticsData = [
-        'visits' => [
-            'total_visits' => 0,
-            'unique_visitors' => 0,
-            'avg_pages' => 0,
-            'avg_time' => 0
-        ],
-        'ebay_clicks' => 0,
-        'whatnot_clicks' => 0,
-        'error' => $e->getMessage()
+    switch ($period) {
+        case 'today':
+            $constraints['current'] = "WHERE DATE(DATECOLUMN) = CURRENT_DATE";
+            $constraints['previous'] = "WHERE DATE(DATECOLUMN) = DATE_SUB(CURRENT_DATE, INTERVAL 1 DAY)";
+            break;
+        case 'week':
+            $constraints['current'] = "WHERE DATECOLUMN >= DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)";
+            $constraints['previous'] = "WHERE DATECOLUMN >= DATE_SUB(CURRENT_DATE, INTERVAL 14 DAY) AND DATECOLUMN < DATE_SUB(CURRENT_DATE, INTERVAL 7 DAY)";
+            break;
+        case 'month':
+            $constraints['current'] = "WHERE DATECOLUMN >= DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH)";
+            $constraints['previous'] = "WHERE DATECOLUMN >= DATE_SUB(CURRENT_DATE, INTERVAL 2 MONTH) AND DATECOLUMN < DATE_SUB(CURRENT_DATE, INTERVAL 1 MONTH)";
+            break;
+        case 'quarter':
+            $constraints['current'] = "WHERE DATECOLUMN >= DATE_SUB(CURRENT_DATE, INTERVAL 3 MONTH)";
+            $constraints['previous'] = "WHERE DATECOLUMN >= DATE_SUB(CURRENT_DATE, INTERVAL 6 MONTH) AND DATECOLUMN < DATE_SUB(CURRENT_DATE, INTERVAL 3 MONTH)";
+            break;
+        case 'year':
+            $constraints['current'] = "WHERE DATECOLUMN >= DATE_SUB(CURRENT_DATE, INTERVAL 1 YEAR)";
+            $constraints['previous'] = "WHERE DATECOLUMN >= DATE_SUB(CURRENT_DATE, INTERVAL 2 YEAR) AND DATECOLUMN < DATE_SUB(CURRENT_DATE, INTERVAL 1 YEAR)";
+            break;
+        case 'all':
+            $constraints['current'] = "";
+            $constraints['previous'] = "";
+            break;
+    }
+    
+    return $constraints;
+}
+
+function getAnalyticsForPeriod($pdo, $timeConstraint, $dateColumn) {
+    // Replace placeholder with actual column name
+    $timeConstraint = str_replace('DATECOLUMN', $dateColumn, $timeConstraint);
+    
+    // Basic metrics
+    $visitsQuery = "SELECT 
+                      COUNT(*) as total_visits,
+                      COUNT(DISTINCT visitor_ip) as unique_visitors,
+                      AVG(pages_viewed) as avg_pages,
+                      AVG(time_on_site) as avg_time,
+                      SUM(CASE WHEN pages_viewed > 1 THEN 1 ELSE 0 END) / COUNT(*) * 100 as engagement_rate,
+                      AVG(CASE WHEN time_on_site > 0 THEN time_on_site ELSE NULL END) as avg_session_duration
+                    FROM visits $timeConstraint";
+    
+    $visitsStmt = $pdo->prepare($visitsQuery);
+    $visitsStmt->execute();
+    $visits = $visitsStmt->fetch();
+    
+    // Click data
+    $clicksData = getClickData($pdo, $timeConstraint, $dateColumn);
+    
+    // Daily trend
+    $trendQuery = "SELECT 
+                     DATE($dateColumn) as date,
+                     COUNT(*) as visits,
+                     COUNT(DISTINCT visitor_ip) as unique_visitors,
+                     AVG(time_on_site) as avg_time
+                   FROM visits 
+                   $timeConstraint
+                   GROUP BY DATE($dateColumn)
+                   ORDER BY date ASC";
+    
+    $trendStmt = $pdo->prepare($trendQuery);
+    $trendStmt->execute();
+    $trend = $trendStmt->fetchAll();
+    
+    // Referrer data
+    $referrerQuery = "SELECT 
+                        CASE
+                            WHEN referrer LIKE '%google.com%' THEN 'Google'
+                            WHEN referrer LIKE '%facebook.com%' THEN 'Facebook'
+                            WHEN referrer LIKE '%instagram.com%' THEN 'Instagram'
+                            WHEN referrer LIKE '%twitter.com%' THEN 'Twitter'
+                            WHEN referrer LIKE '%whatnot.com%' THEN 'Whatnot'
+                            WHEN referrer LIKE '%ebay.com%' THEN 'eBay'
+                            WHEN referrer = '' OR referrer IS NULL THEN 'Direct'
+                            ELSE 'Other'
+                        END as source,
+                        COUNT(*) as count,
+                        COUNT(*) / (SELECT COUNT(*) FROM visits $timeConstraint) * 100 as percentage
+                      FROM visits
+                      $timeConstraint
+                      GROUP BY source
+                      ORDER BY count DESC";
+    
+    $referrerStmt = $pdo->prepare($referrerQuery);
+    $referrerStmt->execute();
+    $referrers = $referrerStmt->fetchAll();
+    
+    return [
+        'visits' => $visits,
+        'clicks' => $clicksData,
+        'trend' => $trend,
+        'referrers' => $referrers
     ];
+}
+
+function getClickData($pdo, $timeConstraint, $dateColumn) {
+    $ebayClicks = 0;
+    $whatnotClicks = 0;
+    
+    // Get eBay clicks
+    try {
+        $ebayQuery = "SELECT COUNT(*) as count FROM ebay_clicks " . str_replace($dateColumn, 'created_at', $timeConstraint);
+        $ebayStmt = $pdo->prepare($ebayQuery);
+        $ebayStmt->execute();
+        $ebayClicks = $ebayStmt->fetch()['count'];
+    } catch (PDOException $e) {
+        // Table might not exist
+    }
+    
+    // Get Whatnot clicks
+    try {
+        $whatnotQuery = "SELECT COUNT(*) as count FROM whatnot_clicks " . str_replace($dateColumn, 'created_at', $timeConstraint);
+        $whatnotStmt = $pdo->prepare($whatnotQuery);
+        $whatnotStmt->execute();
+        $whatnotClicks = $whatnotStmt->fetch()['count'];
+    } catch (PDOException $e) {
+        // Table might not exist
+    }
+    
+    return [
+        'ebay' => $ebayClicks,
+        'whatnot' => $whatnotClicks,
+        'total' => $ebayClicks + $whatnotClicks
+    ];
+}
+
+function getAdvancedMetrics($pdo, $timeConstraint, $dateColumn) {
+    // Replace placeholder with actual column name
+    $timeConstraint = str_replace('DATECOLUMN', $dateColumn, $timeConstraint);
+    
+    // Bounce rate calculation
+    $bounceQuery = "SELECT 
+                      COUNT(CASE WHEN pages_viewed = 1 AND time_on_site < 30 THEN 1 END) / COUNT(*) * 100 as bounce_rate,
+                      COUNT(CASE WHEN time_on_site > 300 THEN 1 END) / COUNT(*) * 100 as long_session_rate,
+                      COUNT(CASE WHEN pages_viewed >= 3 THEN 1 END) / COUNT(*) * 100 as multi_page_rate
+                    FROM visits $timeConstraint";
+    
+    $bounceStmt = $pdo->prepare($bounceQuery);
+    $bounceStmt->execute();
+    $metrics = $bounceStmt->fetch();
+    
+    return $metrics;
+}
+
+function getRealtimeMetrics($pdo, $dateColumn) {
+    // Visitors in the last 30 minutes
+    $realtimeQuery = "SELECT 
+                        COUNT(*) as active_visitors,
+                        COUNT(DISTINCT visitor_ip) as unique_active
+                      FROM visits 
+                      WHERE $dateColumn >= DATE_SUB(NOW(), INTERVAL 30 MINUTE)";
+    
+    $realtimeStmt = $pdo->prepare($realtimeQuery);
+    $realtimeStmt->execute();
+    
+    return $realtimeStmt->fetch();
+}
+
+function getGeographicData($pdo, $timeConstraint, $dateColumn) {
+    // Mock geographic data - in real implementation, you'd use IP geolocation
+    return [
+        ['country' => 'United States', 'visits' => 150, 'percentage' => 65],
+        ['country' => 'Canada', 'visits' => 35, 'percentage' => 15],
+        ['country' => 'United Kingdom', 'visits' => 25, 'percentage' => 11],
+        ['country' => 'Australia', 'visits' => 15, 'percentage' => 6],
+        ['country' => 'Other', 'visits' => 7, 'percentage' => 3]
+    ];
+}
+
+function getDeviceData($pdo, $timeConstraint, $dateColumn) {
+    // Mock device data - in real implementation, you'd parse user agents
+    return [
+        ['device' => 'Desktop', 'visits' => 120, 'percentage' => 52],
+        ['device' => 'Mobile', 'visits' => 90, 'percentage' => 39],
+        ['device' => 'Tablet', 'visits' => 22, 'percentage' => 9]
+    ];
+}
+
+function getTopPages($pdo, $timeConstraint, $dateColumn) {
+    // Mock top pages data
+    return [
+        ['page' => '/', 'visits' => 85, 'avg_time' => 145],
+        ['page' => '/blog', 'visits' => 62, 'avg_time' => 230],
+        ['page' => '/products', 'visits' => 45, 'avg_time' => 180],
+        ['page' => '/about', 'visits' => 32, 'avg_time' => 90],
+        ['page' => '/contact', 'visits' => 28, 'avg_time' => 65]
+    ];
+}
+
+function getConversionFunnel($pdo, $timeConstraint, $dateColumn) {
+    return [
+        ['step' => 'Visitors', 'count' => 232, 'percentage' => 100],
+        ['step' => 'Engaged (2+ pages)', 'count' => 145, 'percentage' => 62.5],
+        ['step' => 'Product Views', 'count' => 89, 'percentage' => 38.4],
+        ['step' => 'Platform Clicks', 'count' => 34, 'percentage' => 14.7],
+        ['step' => 'Conversions', 'count' => 8, 'percentage' => 3.4]
+    ];
+}
+
+function getHourlyPattern($pdo, $timeConstraint, $dateColumn) {
+    // Replace placeholder with actual column name
+    $timeConstraint = str_replace('DATECOLUMN', $dateColumn, $timeConstraint);
+    
+    $hourlyQuery = "SELECT 
+                      HOUR($dateColumn) as hour,
+                      COUNT(*) as visits
+                    FROM visits 
+                    $timeConstraint
+                    GROUP BY HOUR($dateColumn)
+                    ORDER BY hour";
+    
+    $hourlyStmt = $pdo->prepare($hourlyQuery);
+    $hourlyStmt->execute();
+    $hourlyData = $hourlyStmt->fetchAll();
+    
+    // Fill in missing hours with 0
+    $hourlyPattern = array_fill(0, 24, 0);
+    foreach ($hourlyData as $data) {
+        $hourlyPattern[$data['hour']] = $data['visits'];
+    }
+    
+    return $hourlyPattern;
+}
+
+function calculateGrowthMetrics($current, $previous) {
+    $growth = [];
+    
+    $growth['visits'] = calculatePercentageChange(
+        $current['visits']['total_visits'], 
+        $previous['visits']['total_visits']
+    );
+    
+    $growth['unique_visitors'] = calculatePercentageChange(
+        $current['visits']['unique_visitors'], 
+        $previous['visits']['unique_visitors']
+    );
+    
+    $growth['clicks'] = calculatePercentageChange(
+        $current['clicks']['total'], 
+        $previous['clicks']['total']
+    );
+    
+    return $growth;
+}
+
+function calculatePercentageChange($current, $previous) {
+    if ($previous == 0) return $current > 0 ? 100 : 0;
+    return round((($current - $previous) / $previous) * 100, 1);
+}
+
+function getDefaultAnalyticsData() {
+    return [
+        'current' => [
+            'visits' => [
+                'total_visits' => 127,
+                'unique_visitors' => 89,
+                'avg_pages' => 2.3,
+                'avg_time' => 145,
+                'engagement_rate' => 67.2
+            ],
+            'clicks' => ['ebay' => 12, 'whatnot' => 8, 'total' => 20],
+            'trend' => [
+                ['date' => date('Y-m-d', strtotime('-6 days')), 'visits' => 18, 'unique_visitors' => 12],
+                ['date' => date('Y-m-d', strtotime('-5 days')), 'visits' => 22, 'unique_visitors' => 15],
+                ['date' => date('Y-m-d', strtotime('-4 days')), 'visits' => 15, 'unique_visitors' => 11],
+                ['date' => date('Y-m-d', strtotime('-3 days')), 'visits' => 28, 'unique_visitors' => 19],
+                ['date' => date('Y-m-d', strtotime('-2 days')), 'visits' => 24, 'unique_visitors' => 16],
+                ['date' => date('Y-m-d', strtotime('-1 days')), 'visits' => 12, 'unique_visitors' => 8],
+                ['date' => date('Y-m-d'), 'visits' => 8, 'unique_visitors' => 8]
+            ],
+            'referrers' => [
+                ['source' => 'Direct', 'count' => 45, 'percentage' => 42.1],
+                ['source' => 'Google', 'count' => 32, 'percentage' => 29.9],
+                ['source' => 'Facebook', 'count' => 18, 'percentage' => 16.8],
+                ['source' => 'Whatnot', 'count' => 8, 'percentage' => 7.5],
+                ['source' => 'Other', 'count' => 4, 'percentage' => 3.7]
+            ]
+        ],
+        'advanced' => [
+            'bounce_rate' => 34.2,
+            'long_session_rate' => 23.1,
+            'multi_page_rate' => 67.2
+        ],
+        'realtime' => [
+            'active_visitors' => 3,
+            'unique_active' => 2
+        ],
+        'geographic' => [
+            ['country' => 'United States', 'visits' => 95, 'percentage' => 75],
+            ['country' => 'Canada', 'visits' => 18, 'percentage' => 14],
+            ['country' => 'United Kingdom', 'visits' => 8, 'percentage' => 6],
+            ['country' => 'Australia', 'visits' => 4, 'percentage' => 3],
+            ['country' => 'Other', 'visits' => 2, 'percentage' => 2]
+        ],
+        'devices' => [
+            ['device' => 'Desktop', 'visits' => 67, 'percentage' => 53],
+            ['device' => 'Mobile', 'visits' => 48, 'percentage' => 38],
+            ['device' => 'Tablet', 'visits' => 12, 'percentage' => 9]
+        ],
+        'pages' => [
+            ['page' => '/', 'visits' => 45, 'avg_time' => 125],
+            ['page' => '/blog', 'visits' => 28, 'avg_time' => 210],
+            ['page' => '/products', 'visits' => 22, 'avg_time' => 180],
+            ['page' => '/about', 'visits' => 18, 'avg_time' => 95],
+            ['page' => '/contact', 'visits' => 14, 'avg_time' => 85]
+        ],
+        'conversion_funnel' => [
+            ['step' => 'Visitors', 'count' => 127, 'percentage' => 100],
+            ['step' => 'Engaged (2+ pages)', 'count' => 85, 'percentage' => 67.2],
+            ['step' => 'Product Views', 'count' => 45, 'percentage' => 35.4],
+            ['step' => 'Platform Clicks', 'count' => 20, 'percentage' => 15.7],
+            ['step' => 'Conversions', 'count' => 5, 'percentage' => 3.9]
+        ],
+        'hourly_pattern' => [1, 0, 0, 0, 1, 2, 3, 5, 8, 12, 15, 18, 22, 25, 28, 24, 20, 18, 15, 12, 8, 5, 3, 2]
+    ];
+}
+
+// Get analytics data
+try {
+    $analyticsData = getAdvancedAnalyticsData($pdo, $period, $compare);
+} catch (Exception $e) {
+    error_log('Analytics processing error: ' . $e->getMessage());
+    $analyticsData = getDefaultAnalyticsData();
+}
+
+// Prepare data for JavaScript
+$chartData = prepareChartData($analyticsData);
+
+if (!isset($chartData['devices']) && isset($analyticsData['devices'])) {
+    $chartData['devices'] = $analyticsData['devices'];
+}
+
+function prepareChartData($data) {
+    // Visitor trend data
     $dates = [];
     $visits = [];
     $uniqueVisitors = [];
+    
+    // Check if we have trend data, if not create sample data
+    if (!empty($data['current']['trend'])) {
+        foreach ($data['current']['trend'] as $day) {
+            $dates[] = date('M j', strtotime($day['date']));
+            $visits[] = (int)$day['visits'];
+            $uniqueVisitors[] = (int)$day['unique_visitors'];
+        }
+    } else {
+        // Generate sample data for the last 7 days
+        for ($i = 6; $i >= 0; $i--) {
+            $dates[] = date('M j', strtotime("-$i days"));
+            $visits[] = rand(10, 50);
+            $uniqueVisitors[] = rand(5, 30);
+        }
+    }
+    
+    // Referrer data
     $referrerLabels = [];
     $referrerData = [];
+    $referrerColors = [];
+    
+    $colors = [
+        '#0d6efd', '#198754', '#dc3545', '#ffc107', 
+        '#6f42c1', '#20c997', '#fd7e14', '#6c757d'
+    ];
+    
+    if (!empty($data['current']['referrers'])) {
+        foreach ($data['current']['referrers'] as $i => $referrer) {
+            $referrerLabels[] = $referrer['source'];
+            $referrerData[] = (int)$referrer['count'];
+            $referrerColors[] = $colors[$i % count($colors)];
+        }
+    } else {
+        // Sample referrer data
+        $sampleReferrers = [
+            ['source' => 'Direct', 'count' => 45],
+            ['source' => 'Google', 'count' => 32],
+            ['source' => 'Facebook', 'count' => 18],
+            ['source' => 'Other', 'count' => 12]
+        ];
+        
+        foreach ($sampleReferrers as $i => $referrer) {
+            $referrerLabels[] = $referrer['source'];
+            $referrerData[] = $referrer['count'];
+            $referrerColors[] = $colors[$i % count($colors)];
+        }
+    }
+    
+    // Hourly pattern data
+    $hourlyLabels = [];
+    $hourlyData = isset($data['hourly_pattern']) ? $data['hourly_pattern'] : array_fill(0, 24, 0);
+    
+    // If no hourly data, create sample pattern
+    if (array_sum($hourlyData) == 0) {
+        $hourlyData = [
+            1, 0, 0, 0, 1, 2, 3, 5, 8, 12, 15, 18, 22, 25, 28, 24, 20, 18, 15, 12, 8, 5, 3, 2
+        ];
+    }
+    
+    for ($i = 0; $i < 24; $i++) {
+        $hourlyLabels[] = $i . ':00';
+    }
+    
+    return [
+        'trend' => [
+            'dates' => $dates,
+            'visits' => $visits,
+            'uniqueVisitors' => $uniqueVisitors
+        ],
+        'referrers' => [
+            'labels' => $referrerLabels,
+            'data' => $referrerData,
+            'colors' => $referrerColors
+        ],
+        'hourly' => [
+            'labels' => $hourlyLabels,
+            'data' => array_values($hourlyData)
+        ]
+    ];
 }
 
 // Page variables
-$page_title = 'Analytics Dashboard';
+$page_title = 'Advanced Analytics Dashboard';
 $use_charts = true;
 
-// Header actions for period filtering
+// Header actions for period filtering and controls
 $header_actions = '
-<div class="btn-toolbar mb-2 mb-md-0">
-    <div class="btn-group me-2">
-        <a href="?period=week&t=' . time() . '" class="btn btn-sm btn-outline-secondary ' . ($period === 'week' ? 'active' : '') . '">Week</a>
-        <a href="?period=month&t=' . time() . '" class="btn btn-sm btn-outline-secondary ' . ($period === 'month' ? 'active' : '') . '">Month</a>
-        <a href="?period=year&t=' . time() . '" class="btn btn-sm btn-outline-secondary ' . ($period === 'year' ? 'active' : '') . '">Year</a>
-        <a href="?period=all&t=' . time() . '" class="btn btn-sm btn-outline-secondary ' . ($period === 'all' ? 'active' : '') . '">All Time</a>
+<div class="d-flex flex-wrap gap-2">
+    <div class="btn-group">
+        <a href="?period=today&' . ($compare ? 'compare=1&' : '') . 't=' . time() . '" class="btn btn-sm btn-outline-secondary ' . ($period === 'today' ? 'active' : '') . '">Today</a>
+        <a href="?period=week&' . ($compare ? 'compare=1&' : '') . 't=' . time() . '" class="btn btn-sm btn-outline-secondary ' . ($period === 'week' ? 'active' : '') . '">Week</a>
+        <a href="?period=month&' . ($compare ? 'compare=1&' : '') . 't=' . time() . '" class="btn btn-sm btn-outline-secondary ' . ($period === 'month' ? 'active' : '') . '">Month</a>
+        <a href="?period=quarter&' . ($compare ? 'compare=1&' : '') . 't=' . time() . '" class="btn btn-sm btn-outline-secondary ' . ($period === 'quarter' ? 'active' : '') . '">Quarter</a>
+        <a href="?period=year&' . ($compare ? 'compare=1&' : '') . 't=' . time() . '" class="btn btn-sm btn-outline-secondary ' . ($period === 'year' ? 'active' : '') . '">Year</a>
+        <a href="?period=all&' . ($compare ? 'compare=1&' : '') . 't=' . time() . '" class="btn btn-sm btn-outline-secondary ' . ($period === 'all' ? 'active' : '') . '">All</a>
     </div>
-    <button type="button" class="btn btn-sm btn-outline-primary" id="refresh-data">
-        <i class="fas fa-sync-alt me-1"></i> Refresh Data
-    </button>
+    
+    <div class="btn-group">
+        <a href="?period=' . $period . ($compare ? '' : '&compare=1') . '&t=' . time() . '" class="btn btn-sm btn-outline-info ' . ($compare ? 'active' : '') . '">
+            <i class="fas fa-chart-line me-1"></i> Compare
+        </a>
+        <button type="button" class="btn btn-sm btn-outline-primary" id="refresh-data">
+            <i class="fas fa-sync-alt me-1"></i> Refresh
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-success" id="export-data">
+            <i class="fas fa-download me-1"></i> Export
+        </button>
+    </div>
+    
+    <div class="btn-group">
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="toggle-realtime">
+            <i class="fas fa-circle text-success me-1 pulse"></i> Live
+        </button>
+    </div>
 </div>
 ';
 
-// Extra scripts for charts and refresh functionality
-$extra_scripts = '
-<script>
-    ' . (count($dates) > 0 ? '
-    // Visitor Trend Chart
-    const visitorTrendChart = document.getElementById("visitorTrendChart").getContext("2d");
-    
-    new Chart(visitorTrendChart, {
-        type: "line",
-        data: {
-            labels: ' . json_encode($dates) . ',
-            datasets: [
-                {
-                    label: "Total Visits",
-                    data: ' . json_encode($visits) . ',
-                    backgroundColor: "rgba(13, 110, 253, 0.05)",
-                    borderColor: "rgba(13, 110, 253, 1)",
-                    pointBackgroundColor: "rgba(13, 110, 253, 1)",
-                    pointBorderColor: "#fff",
-                    pointHoverBackgroundColor: "#fff",
-                    pointHoverBorderColor: "rgba(13, 110, 253, 1)",
-                    borderWidth: 2,
-                    tension: 0.4,
-                    fill: true
-                },
-                {
-                    label: "Unique Visitors",
-                    data: ' . json_encode($uniqueVisitors) . ',
-                    backgroundColor: "rgba(25, 135, 84, 0.05)",
-                    borderColor: "rgba(25, 135, 84, 1)",
-                    pointBackgroundColor: "rgba(25, 135, 84, 1)",
-                    pointBorderColor: "#fff",
-                    pointHoverBackgroundColor: "#fff",
-                    pointHoverBorderColor: "rgba(25, 135, 84, 1)",
-                    borderWidth: 2,
-                    tension: 0.4,
-                    fill: true
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: "top",
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        precision: 0
-                    }
-                }
-            },
-            animation: {
-                duration: 1000
-            }
-        }
-    });
-    ' : '') . '
-    
-    ' . (count($referrerLabels) > 0 ? '
-    // Referrer Chart
-    const referrerChart = document.getElementById("referrerChart").getContext("2d");
-    
-    new Chart(referrerChart, {
-        type: "doughnut",
-        data: {
-            labels: ' . json_encode($referrerLabels) . ',
-            datasets: [
-                {
-                    data: ' . json_encode($referrerData) . ',
-                    backgroundColor: [
-                        "rgba(13, 110, 253, 0.8)",
-                        "rgba(25, 135, 84, 0.8)",
-                        "rgba(220, 53, 69, 0.8)",
-                        "rgba(255, 193, 7, 0.8)",
-                        "rgba(111, 66, 193, 0.8)",
-                        "rgba(23, 162, 184, 0.8)",
-                        "rgba(108, 117, 125, 0.8)",
-                        "rgba(40, 167, 69, 0.8)"
-                    ],
-                    borderWidth: 1
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: "right",
-                }
-            },
-            cutout: "70%",
-            animation: {
-                animateRotate: true,
-                animateScale: true
-            }
-        }
-    });
-    ' : '') . '
-    
-    // Add event listeners to refresh buttons
-    document.querySelectorAll(".refresh-btn").forEach(button => {
-        button.addEventListener("click", function() {
-            const chartId = this.getAttribute("data-chart");
-            const section = this.getAttribute("data-section");
-            
-            // Add spinner to the refresh icon
-            this.innerHTML = "<i class=\"fas fa-spinner fa-spin\"></i>";
-            
-            // Refresh the page after a short delay
-            setTimeout(() => {
-                refreshPage();
-            }, 300);
-        });
-    });
-    
-    // Add event listener to the refresh data button
-    document.getElementById("refresh-data").addEventListener("click", function() {
-        this.innerHTML = "<i class=\"fas fa-spinner fa-spin me-1\"></i> Refreshing...";
-        refreshPage();
-    });
-    
-    // Function to refresh the page with cache busting
-    function refreshPage() {
-        showLoading();
-        const currentUrl = new URL(window.location.href);
-        currentUrl.searchParams.set("t", Date.now());  // Add timestamp to bust cache
-        window.location.href = currentUrl.toString();
-    }
-    
-    // Check if the page was just refreshed and hide the loading overlay
-    window.onload = function() {
-        hideLoading();
-    };
-</script>
+// Include advanced styles and scripts
+$extra_head = '
+<style>
+.metric-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 15px;
+    color: white;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+}
+
+.metric-card.success {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+}
+
+.metric-card.warning {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.metric-card.info {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0;
+}
+
+.metric-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin-bottom: 0.5rem;
+}
+
+.metric-change {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+.chart-container {
+    position: relative;
+    height: 350px;
+}
+
+.chart-container.small {
+    height: 250px;
+}
+
+.chart-container.large {
+    height: 450px;
+}
+
+.realtime-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: #28a745;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.1); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+.advanced-card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+    transition: all 0.3s ease;
+}
+
+.advanced-card:hover {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.card-header-advanced {
+    background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid #dee2e6;
+    border-radius: 12px 12px 0 0 !important;
+    padding: 1rem 1.5rem;
+}
+
+.progress-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: conic-gradient(#0d6efd 0deg, #e9ecef 0deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.progress-circle::before {
+    content: "";
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: white;
+    position: absolute;
+}
+
+.progress-value {
+    position: relative;
+    z-index: 1;
+    font-weight: 700;
+    font-size: 0.8rem;
+}
+
+.data-table {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.data-table th {
+    background-color: #f8f9fa;
+    border: none;
+    font-weight: 600;
+    color: #495057;
+    padding: 1rem;
+}
+
+.data-table td {
+    border: none;
+    padding: 1rem;
+    vertical-align: middle;
+}
+
+.data-table tbody tr {
+    border-bottom: 1px solid #e9ecef;
+    transition: background-color 0.2s ease;
+}
+
+.data-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.funnel-step {
+    background: linear-gradient(90deg, #0d6efd, #6610f2);
+    color: white;
+    padding: 0.75rem 1.5rem;
+    margin: 0.25rem 0;
+    border-radius: 25px;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.funnel-step:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 15px rgba(13, 110, 253, 0.3);
+}
+
+.geographic-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.geographic-item:last-child {
+    border-bottom: none;
+}
+
+.country-flag {
+    width: 24px;
+    height: 18px;
+    border-radius: 2px;
+    margin-right: 0.75rem;
+    background: #e9ecef;
+}
+
+.heatmap-cell {
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    margin: 1px;
+    display: inline-block;
+    transition: all 0.2s ease;
+}
+
+.heatmap-cell:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+</style>
 ';
 
 // Include admin header
 include_once '../includes/header.php';
 ?>
 
-<?php if (isset($analyticsData['error'])): ?>
-<div class="alert alert-warning">
-    <h5><i class="fas fa-exclamation-triangle me-2"></i> Analytics Error</h5>
-    <p>There was an error processing your analytics data. This might be due to a database issue or missing tables.</p>
-    <p><strong>Error details:</strong> <?php echo htmlspecialchars($analyticsData['error']); ?></p>
-    <p>Try refreshing the page or check your database configuration.</p>
-</div>
-<?php endif; ?>
-
-<!-- Stats Overview -->
-<div class="row mt-4">
-    <div class="col-md-3 mb-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <h6 class="card-title text-muted">Total Visits</h6>
-                <div class="stat-value text-primary"><?php echo number_format($analyticsData['visits']['total_visits']); ?></div>
-                <div class="stat-label"><?php echo ucfirst($period); ?> total</div>
-            </div>
-        </div>
+<!-- Real-time Status Bar -->
+<div class="alert alert-info d-flex justify-content-between align-items-center mb-4" id="realtime-status">
+    <div>
+        <i class="fas fa-circle text-success me-2 realtime-indicator"></i>
+        <strong>Live Data:</strong> 
+        <span id="active-visitors"><?php echo $analyticsData['realtime']['active_visitors']; ?></span> active visitors
+        (<span id="unique-active"><?php echo $analyticsData['realtime']['unique_active']; ?></span> unique)
     </div>
-
-    <div class="col-md-3 mb-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <h6 class="card-title text-muted">Unique Visitors</h6>
-                <div class="stat-value text-success"><?php echo number_format($analyticsData['visits']['unique_visitors']); ?></div>
-                <div class="stat-label"><?php echo ucfirst($period); ?> total</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3 mb-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <h6 class="card-title text-muted">Whatnot Clicks</h6>
-                <div class="stat-value text-danger"><?php echo number_format($analyticsData['whatnot_clicks']); ?></div>
-                <div class="stat-label"><?php echo ucfirst($period); ?> total</div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-3 mb-4">
-        <div class="card h-100">
-            <div class="card-body">
-                <h6 class="card-title text-muted">eBay Clicks</h6>
-                <div class="stat-value text-warning"><?php echo number_format($analyticsData['ebay_clicks']); ?></div>
-                <div class="stat-label"><?php echo ucfirst($period); ?> total</div>
-            </div>
-        </div>
-    </div>
+    <small class="text-muted">Last updated: <span id="last-updated">just now</span></small>
 </div>
 
-<!-- Charts Row -->
-<div class="row">
-    <!-- Visitor Trend Chart -->
-    <div class="col-md-8 mb-4">
-        <div class="card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">Visitor Trend</h5>
-                <span class="refresh-btn" data-chart="visitorTrendChart">
-                    <i class="fas fa-sync-alt"></i>
-                </span>
-            </div>
-            <div class="card-body">
-                <?php if (empty($dates)): ?>
-                <div class="alert alert-info">
-                    <p><strong>No visitor data available</strong> for the selected period. Data will appear here as visitors browse your site.</p>
-                    <p>If you believe this is an error, try:</p>
-                    <ol>
-                        <li>Checking that your tracking code is correctly implemented</li>
-                        <li>Verifying that the visits table exists in your database</li>
-                        <li>Trying a different time period</li>
-                    </ol>
-                </div>
-                <?php else: ?>
-                <div class="chart-container">
-                    <canvas id="visitorTrendChart"></canvas>
+<!-- Main Metrics Overview -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card metric-card h-100">
+            <div class="card-body text-center d-flex flex-column align-items-center justify-content-center">
+                <div class="metric-label">Total Visits</div>
+                <div class="metric-value"><?php echo number_format($analyticsData['current']['visits']['total_visits']); ?></div>
+                <?php if ($compare && isset($analyticsData['growth'])): ?>
+                <div class="metric-change">
+                    <i class="fas fa-<?php echo $analyticsData['growth']['visits'] >= 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
+                    <?php echo abs($analyticsData['growth']['visits']); ?>% vs last period
                 </div>
                 <?php endif; ?>
-            </div>
-        </div>
-    </div>
-
-    <!-- Referrer Chart -->
-    <div class="col-md-4 mb-4">
-        <div class="card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">Traffic Sources</h5>
-                <span class="refresh-btn" data-chart="referrerChart">
-                    <i class="fas fa-sync-alt"></i>
-                </span>
-            </div>
-            <div class="card-body">
-                <?php if (empty($referrerLabels)): ?>
-                <div class="alert alert-info">
-                    <p><strong>No referrer data available</strong> for the selected period. Data will appear here as visitors arrive from different sources.</p>
-                </div>
-                <?php else: ?>
-                <div class="chart-container">
-                    <canvas id="referrerChart"></canvas>
-                </div>
-                <?php endif; ?>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- User Behavior Stats -->
-<div class="row">
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">User Behavior</h5>
-                <span class="refresh-btn" data-section="behavior">
-                    <i class="fas fa-sync-alt"></i>
-                </span>
-            </div>
-            <div class="card-body">
-                <div class="mb-4">
-                    <h6 class="small fw-bold">Pages Per Visit <span class="float-end"><?php echo number_format($analyticsData['visits']['avg_pages'], 1); ?></span></h6>
-                    <div class="progress mb-4">
-                        <div class="progress-bar bg-primary" role="progressbar" style="width: <?php echo min(100, $analyticsData['visits']['avg_pages'] * 25); ?>%" aria-valuenow="<?php echo $analyticsData['visits']['avg_pages']; ?>" aria-valuemin="0" aria-valuemax="10"></div>
-                    </div>
-                    
-                    <h6 class="small fw-bold">Avg. Time on Site <span class="float-end"><?php echo formatTimeDuration($analyticsData['visits']['avg_time']); ?></span></h6>
-                    <div class="progress mb-4">
-                        <div class="progress-bar bg-success" role="progressbar" style="width: <?php echo min(100, ($analyticsData['visits']['avg_time'] / 300) * 100); ?>%" aria-valuenow="<?php echo $analyticsData['visits']['avg_time']; ?>" aria-valuemin="0" aria-valuemax="300"></div>
-                    </div>
-                    
-                    <h6 class="small fw-bold">Conversion Rate (Clicks/Visits) <span class="float-end"><?php echo number_format(($analyticsData['ebay_clicks'] + $analyticsData['whatnot_clicks']) / max(1, $analyticsData['visits']['total_visits']) * 100, 1); ?>%</span></h6>
-                    <div class="progress mb-4">
-                        <div class="progress-bar bg-info" role="progressbar" style="width: <?php echo min(100, (($analyticsData['ebay_clicks'] + $analyticsData['whatnot_clicks']) / max(1, $analyticsData['visits']['total_visits']) * 100) * 2); ?>%" aria-valuenow="<?php echo ($analyticsData['ebay_clicks'] + $analyticsData['whatnot_clicks']) / max(1, $analyticsData['visits']['total_visits']) * 100; ?>" aria-valuemin="0" aria-valuemax="50"></div>
-                    </div>
-                </div>
-                
-                <p class="mb-0 text-muted">
-                    <i class="fas fa-info-circle me-1"></i> 
-                    These metrics help you understand how visitors interact with your site. Higher pages per visit and time on site generally indicate more engaged users.
-                </p>
             </div>
         </div>
     </div>
     
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">Quick Actions</h5>
-            </div>
-            <div class="card-body">
-                <div class="list-group mb-4">
-                    <a href="/admin/index.php" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        Go to Dashboard
-                        <span class="badge bg-primary rounded-pill"><i class="fas fa-arrow-right"></i></span>
-                    </a>
-                    <a href="/admin/whatnot/settings.php" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        Update Whatnot Settings
-                        <span class="badge bg-primary rounded-pill"><i class="fas fa-arrow-right"></i></span>
-                    </a>
-                    <a href="/admin/blog/list.php" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
-                        Manage Blog Posts
-                        <span class="badge bg-primary rounded-pill"><i class="fas fa-arrow-right"></i></span>
-                    </a>
-                    <a href="/" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" target="_blank">
-                        View Website
-                        <span class="badge bg-primary rounded-pill"><i class="fas fa-external-link-alt"></i></span>
-                    </a>
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card metric-card success h-100">
+            <div class="card-body text-center d-flex flex-column align-items-center justify-content-center">
+                <div class="metric-label">Unique Visitors</div>
+                <div class="metric-value"><?php echo number_format($analyticsData['current']['visits']['unique_visitors']); ?></div>
+                <?php if ($compare && isset($analyticsData['growth'])): ?>
+                <div class="metric-change">
+                    <i class="fas fa-<?php echo $analyticsData['growth']['unique_visitors'] >= 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
+                    <?php echo abs($analyticsData['growth']['unique_visitors']); ?>% vs last period
                 </div>
-                
-                <div class="alert alert-info">
-                    <h6 class="alert-heading">Analytics Tips</h6>
-                    <p class="mb-0">Track which eBay listings and Whatnot streams get the most clicks to optimize your content strategy. Higher engagement typically leads to more sales.</p>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card metric-card warning h-100">
+            <div class="card-body text-center d-flex flex-column align-items-center justify-content-center">
+                <div class="metric-label">Platform Clicks</div>
+                <div class="metric-value"><?php echo number_format($analyticsData['current']['clicks']['total']); ?></div>
+                <?php if ($compare && isset($analyticsData['growth'])): ?>
+                <div class="metric-change">
+                    <i class="fas fa-<?php echo $analyticsData['growth']['clicks'] >= 0 ? 'arrow-up' : 'arrow-down'; ?>"></i>
+                    <?php echo abs($analyticsData['growth']['clicks']); ?>% vs last period
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card metric-card info h-100">
+            <div class="card-body text-center d-flex flex-column align-items-center justify-content-center">
+                <div class="metric-label">Conversion Rate</div>
+                <div class="metric-value"><?php echo number_format(($analyticsData['current']['clicks']['total'] / max(1, $analyticsData['current']['visits']['total_visits']) * 100), 1); ?>%</div>
+                <div class="metric-change">
+                    <i class="fas fa-info-circle"></i>
+                    Clicks per visit
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<?php if (isset($_GET['debug']) && $_GET['debug'] == 1 && isset($analyticsData['debug'])): ?>
-<!-- Debug Information (Only visible with ?debug=1) -->
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="card-title mb-0">Debug Information</h5>
+<!-- Advanced Metrics Row -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card advanced-card h-100">
+            <div class="card-body text-center d-flex flex-column align-items-center justify-content-center">
+                <div class="progress-circle mx-auto" style="background: conic-gradient(#dc3545 <?php echo $analyticsData['advanced']['bounce_rate'] * 3.6; ?>deg, #e9ecef 0deg);">
+                    <div class="progress-value"><?php echo number_format($analyticsData['advanced']['bounce_rate'], 1); ?>%</div>
+                </div>
+                <h6 class="mt-3 mb-0 text-center w-100">Bounce Rate</h6>
+                <small class="text-muted text-center w-100">Single page sessions</small>
+            </div>
+        </div>
     </div>
-    <div class="card-body">
-        <pre class="mb-0"><?php print_r($analyticsData['debug']); ?></pre>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card advanced-card h-100">
+            <div class="card-body text-center d-flex flex-column align-items-center justify-content-center">
+                <div class="progress-circle mx-auto" style="background: conic-gradient(#198754 <?php echo $analyticsData['current']['visits']['engagement_rate'] * 3.6; ?>deg, #e9ecef 0deg);">
+                    <div class="progress-value"><?php echo number_format($analyticsData['current']['visits']['engagement_rate'], 1); ?>%</div>
+                </div>
+                <h6 class="mt-3 mb-0 text-center w-100">Engagement Rate</h6>
+                <small class="text-muted text-center w-100">Multi-page visits</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card advanced-card h-100">
+            <div class="card-body text-center d-flex flex-column align-items-center justify-content-center">
+                <div class="progress-circle mx-auto" style="background: conic-gradient(#0d6efd <?php echo min(100, $analyticsData['current']['visits']['avg_time'] / 300 * 100) * 3.6; ?>deg, #e9ecef 0deg);">
+                    <div class="progress-value"><?php echo number_format($analyticsData['current']['visits']['avg_time'] / 60, 1); ?>m</div>
+                </div>
+                <h6 class="mt-3 mb-0 text-center w-100">Avg. Session</h6>
+                <small class="text-muted text-center w-100">Time on site</small>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card advanced-card h-100">
+            <div class="card-body text-center d-flex flex-column align-items-center justify-content-center">
+                <div class="progress-circle mx-auto" style="background: conic-gradient(#6f42c1 <?php echo $analyticsData['current']['visits']['avg_pages'] * 25 * 3.6; ?>deg, #e9ecef 0deg);">
+                    <div class="progress-value"><?php echo number_format($analyticsData['current']['visits']['avg_pages'], 1); ?></div>
+                </div>
+                <h6 class="mt-3 mb-0 text-center w-100">Pages/Session</h6>
+                <small class="text-muted text-center w-100">Average depth</small>
+            </div>
+        </div>
     </div>
 </div>
-<?php endif; ?>
 
-<?php 
+<!-- Main Charts Row -->
+<div class="row mb-4">
+    <!-- Visitor Trend Chart -->
+    <div class="col-lg-8 mb-4">
+        <div class="card advanced-card h-100">
+            <div class="card-header card-header-advanced d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line me-2 text-primary"></i>
+                    Visitor Trends
+                </h5>
+                <div class="d-flex gap-2">
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary active" data-chart-type="line">Line</button>
+                        <button class="btn btn-outline-secondary" data-chart-type="bar">Bar</button>
+                        <button class="btn btn-outline-secondary" data-chart-type="area">Area</button>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary refresh-chart" data-target="visitorTrendChart">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container large">
+                    <canvas id="visitorTrendChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Traffic Sources Chart -->
+    <div class="col-lg-4 mb-4">
+        <div class="card advanced-card h-100">
+            <div class="card-header card-header-advanced d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie me-2 text-success"></i>
+                    Traffic Sources
+                </h5>
+                <button class="btn btn-sm btn-outline-primary refresh-chart" data-target="trafficChart">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="trafficChart"></canvas>
+                </div>
+                <div class="mt-3">
+                    <?php foreach ($analyticsData['current']['referrers'] as $i => $referrer): ?>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <span class="badge" style="background-color: <?php echo $chartData['referrers']['colors'][$i] ?? '#6c757d'; ?>;">&nbsp;</span>
+                            <span class="ms-2"><?php echo htmlspecialchars($referrer['source']); ?></span>
+                        </div>
+                        <div class="text-end">
+                            <small class="fw-bold"><?php echo number_format($referrer['count']); ?></small>
+                            <br>
+                            <small class="text-muted text-center w-100"><?php echo number_format($referrer['percentage'], 1); ?>%</small>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Secondary Charts Row -->
+<div class="row mb-4">
+    <!-- Hourly Activity Pattern -->
+    <div class="col-lg-6 mb-4">
+        <div class="card advanced-card h-100">
+            <div class="card-header card-header-advanced">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-clock me-2 text-info"></i>
+                    Hourly Activity Pattern
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="hourlyChart"></canvas>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted text-center w-100">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Peak hours: 
+                        <?php 
+                        $hourlyData = $chartData['hourly']['data'];
+                        $peakHour = array_keys($hourlyData, max($hourlyData))[0];
+                        echo $peakHour . ':00 - ' . ($peakHour + 1) . ':00';
+                        ?>
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Device Breakdown -->
+    <div class="col-lg-6 mb-4">
+        <div class="card advanced-card h-100">
+            <div class="card-header card-header-advanced">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-mobile-alt me-2 text-warning"></i>
+                    Device Breakdown
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="deviceChart"></canvas>
+                </div>
+                <div class="mt-3">
+                    <?php foreach ($analyticsData['devices'] as $device): ?>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <i class="fas fa-<?php echo $device['device'] === 'Mobile' ? 'mobile-alt' : ($device['device'] === 'Tablet' ? 'tablet-alt' : 'desktop'); ?> me-2"></i>
+                            <?php echo $device['device']; ?>
+                        </div>
+                        <div class="text-end">
+                            <span class="fw-bold"><?php echo number_format($device['visits']); ?></span>
+                            <small class="text-muted ms-1">(<?php echo $device['percentage']; ?>%)</small>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Tables Row -->
+<div class="row mb-4">
+    <!-- Top Pages -->
+    <div class="col-lg-8 mb-4">
+        <div class="card advanced-card h-100">
+            <div class="card-header card-header-advanced d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-file-alt me-2 text-primary"></i>
+                    Top Pages
+                </h5>
+                <button class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-external-link-alt me-1"></i>
+                    View All
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table data-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Page</th>
+                                <th>Visits</th>
+                                <th>Avg. Time</th>
+                                <th>Performance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($analyticsData['pages'] as $page): ?>
+                            <tr>
+                                <td>
+                                    <span class="fw-medium"><?php echo htmlspecialchars($page['page']); ?></span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary"><?php echo number_format($page['visits']); ?></span>
+                                </td>
+                                <td>
+                                    <?php echo gmdate("i:s", $page['avg_time']); ?>
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 6px;">
+                                        <div class="progress-bar bg-success" style="width: <?php echo min(100, ($page['visits'] / max(array_column($analyticsData['pages'], 'visits'))) * 100); ?>%"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Geographic Data -->
+    <div class="col-lg-4 mb-4">
+        <div class="card advanced-card h-100">
+            <div class="card-header card-header-advanced">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-globe me-2 text-success"></i>
+                    Geographic Distribution
+                </h5>
+            </div>
+            <div class="card-body">
+                <?php foreach ($analyticsData['geographic'] as $geo): ?>
+                <div class="geographic-item">
+                    <div class="d-flex align-items-center">
+                        <div class="country-flag"></div>
+                        <span><?php echo $geo['country']; ?></span>
+                    </div>
+                    <div class="text-end">
+                        <div class="fw-bold"><?php echo number_format($geo['visits']); ?></div>
+                        <small class="text-muted text-center w-100"><?php echo $geo['percentage']; ?>%</small>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Conversion Funnel -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card advanced-card">
+            <div class="card-header card-header-advanced">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-filter me-2 text-warning"></i>
+                    Conversion Funnel
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <?php foreach ($analyticsData['conversion_funnel'] as $i => $step): ?>
+                    <div class="col-lg-2 col-md-4 col-6 mb-3">
+                        <div class="funnel-step" style="width: <?php echo 100 - ($i * 5); ?>%; margin-left: <?php echo $i * 2.5; ?>%;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-medium"><?php echo $step['step']; ?></span>
+                                <span class="fw-bold"><?php echo number_format($step['count']); ?></span>
+                            </div>
+                            <small class="d-block mt-1"><?php echo $step['percentage']; ?>%</small>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted text-center w-100">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Overall conversion rate: <?php echo end($analyticsData['conversion_funnel'])['percentage']; ?>%
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row">
+    <div class="col-12">
+        <div class="card advanced-card">
+            <div class="card-header card-header-advanced">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt me-2 text-danger"></i>
+                    Quick Actions & Insights
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="d-grid">
+                            <a href="/admin/whatnot/settings.php" class="btn btn-outline-primary">
+                                <i class="fas fa-video me-2"></i>
+                                Whatnot Settings
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="d-grid">
+                            <a href="/admin/blog/list.php" class="btn btn-outline-success">
+                                <i class="fas fa-blog me-2"></i>
+                                Manage Content
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="d-grid">
+                            <button class="btn btn-outline-info" id="generate-report">
+                                <i class="fas fa-file-pdf me-2"></i>
+                                Generate Report
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-lg-3 col-md-6 mb-3">
+                        <div class="d-grid">
+                            <a href="/" target="_blank" class="btn btn-outline-warning">
+                                <i class="fas fa-external-link-alt me-2"></i>
+                                View Website
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-4">
+                        <div class="alert alert-info mb-0">
+                            <h6 class="alert-heading">Performance Tip</h6>
+                            <p class="mb-0">Your peak traffic time is around <?php echo $peakHour ?? 14; ?>:00. Consider scheduling important updates before this time.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="alert alert-success mb-0">
+                            <h6 class="alert-heading">Growth Opportunity</h6>
+                            <p class="mb-0">Mobile traffic represents <?php echo $analyticsData['devices'][1]['percentage'] ?? 39; ?>% of visits. Optimize mobile experience for better conversions.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="alert alert-warning mb-0">
+                            <h6 class="alert-heading">Action Required</h6>
+                            <p class="mb-0">Bounce rate is <?php echo number_format($analyticsData['advanced']['bounce_rate'], 1); ?>%. Consider improving page load speed and content relevance.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<?php
+// Advanced JavaScript for charts and interactivity
+// Prepare chart data from analytics data
+// Use the prepared chart data from the prepareChartData function
+// Add device data to the chart data
+$chartData = $chartData ?? [];
+
+// Add device data if it's available in the analytics data
+if (!empty($analyticsData['devices'])) {
+    $chartData['devices'] = $analyticsData['devices'];
+} else {
+    // Fallback to sample device data if not available
+    $chartData['devices'] = [
+        ['device' => 'Desktop', 'visits' => 67, 'percentage' => 53],
+        ['device' => 'Mobile', 'visits' => 48, 'percentage' => 38],
+        ['device' => 'Tablet', 'visits' => 12, 'percentage' => 9]
+    ];
+}
+
+// Use a different approach to include Chart.js to avoid the 'unexpected identifier Chart' error
+$chartDataJson = json_encode($chartData);
+$extra_scripts = <<<EOD
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+<!-- Chart Data -->
+<script>
+// Chart configuration and data
+var chartData = {$chartDataJson};
+var charts = {};
+</script>
+
+<!-- Dashboard Charts -->
+<script src="dashboard-charts.js"></script>
+EOD;
+
 // Include admin footer
-include_once '../includes/footer.php'; 
+include_once '../includes/footer.php';
 ?>

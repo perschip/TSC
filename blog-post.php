@@ -104,7 +104,7 @@ $categories = $categories_stmt->fetchAll();
 
 // Set page variables
 $page_title = $post['title'];
-$extra_css = '/assets/css/blog.css'; // Link to the blog-specific CSS
+$extra_css = '/assets/css/blog.css?v=' . time(); // Link to the blog-specific CSS with cache-busting
 
 // Set meta description for SEO
 $meta_description = !empty($post['meta_description']) ? $post['meta_description'] : $post['excerpt'];

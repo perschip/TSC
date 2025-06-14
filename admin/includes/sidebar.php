@@ -37,6 +37,14 @@
                 </ul>
             </li>
             
+            <!-- To-Do List -->
+            <li class="nav-item">
+                <a href="/admin/todo/index.php" class="nav-link <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/todo/') !== false ? 'active' : ''; ?>">
+                    <i class="fas fa-tasks me-2"></i>
+                    To-Do List
+                </a>
+            </li>
+            
             <!-- Business Tools Dropdown -->
             <li class="nav-item dropdown">
                 <a href="#" class="nav-link dropdown-toggle <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/breaks/') !== false ? 'active' : ''; ?>" 
@@ -58,9 +66,40 @@
                 </ul>
             </li>
             
+            <!-- eBay Dropdown -->
+            <li class="nav-item dropdown">
+                <a href="#" class="nav-link dropdown-toggle <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/ebay/') !== false ? 'active' : ''; ?>" 
+                   id="ebayDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fab fa-ebay me-2"></i>
+                    eBay <span class="badge bg-success rounded-pill ms-1" style="font-size: 0.65rem;">New</span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="ebayDropdown">
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/ebay/listings.php') !== false ? 'active' : ''; ?>" href="/admin/ebay/listings.php">
+                        <i class="fas fa-tag me-2"></i> Listings
+                    </a></li>
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/ebay/settings.php') !== false ? 'active' : ''; ?>" href="/admin/ebay/settings.php">
+                        <i class="fas fa-cog me-2"></i> Settings
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/ebay/image_uploader.php') !== false ? 'active' : ''; ?>" href="/admin/ebay/image_uploader.php">
+                        <i class="fas fa-images me-2"></i> Image Uploader
+                    </a></li>
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/ebay/csv_creator.php') !== false ? 'active' : ''; ?>" href="/admin/ebay/csv_creator.php">
+                        <i class="fas fa-file-csv me-2"></i> CSV Creator
+                    </a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/ebay/auto_sync.php') !== false ? 'active' : ''; ?>" href="/admin/ebay/auto_sync.php">
+                        <i class="fas fa-sync me-2"></i> Auto Sync
+                    </a></li>
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/ebay/analytics.php') !== false ? 'active' : ''; ?>" href="/admin/ebay/analytics.php">
+                        <i class="fas fa-chart-line me-2"></i> Analytics
+                    </a></li>
+                </ul>
+            </li>
+            
             <!-- Integrations Dropdown -->
             <li class="nav-item dropdown">
-                <a href="#" class="nav-link dropdown-toggle <?php echo (strpos($_SERVER['REQUEST_URI'], '/admin/whatnot/') !== false || strpos($_SERVER['REQUEST_URI'], '/admin/ebay/') !== false) ? 'active' : ''; ?>" 
+                <a href="#" class="nav-link dropdown-toggle <?php echo (strpos($_SERVER['REQUEST_URI'], '/admin/whatnot/') !== false || strpos($_SERVER['REQUEST_URI'], '/admin/releases/') !== false) ? 'active' : ''; ?>" 
                    id="integrationsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="fas fa-plug me-2"></i>
                     Integrations
@@ -69,11 +108,39 @@
                     <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/whatnot/') !== false ? 'active' : ''; ?>" href="/admin/whatnot/settings.php">
                         <i class="fas fa-video me-2"></i> Whatnot
                     </a></li>
-                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/ebay/') !== false ? 'active' : ''; ?>" href="/admin/ebay/settings.php">
-                        <i class="fab fa-ebay me-2"></i> eBay <span class="badge bg-success ms-1">New!</span>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/releases/') !== false ? 'active' : ''; ?>" href="/admin/releases/index.php">
+                        <i class="fas fa-calendar-alt me-2"></i> Product Releases
                     </a></li>
+                    <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item disabled" href="#" title="Coming Soon">
-                        <i class="fab fa-paypal me-2"></i> PayPal <small>(Soon)</small>
+                        <i class="fab fa-shopify me-2"></i> Shopify <small>(Soon)</small>
+                    </a></li>
+                </ul>
+            </li>
+            
+            <!-- PayPal Dropdown -->
+            <li class="nav-item dropdown">
+                <a href="#" class="nav-link dropdown-toggle <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/paypal/') !== false ? 'active' : ''; ?>" 
+                   id="paypalDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fab fa-paypal me-2"></i>
+                    PayPal <span class="badge bg-primary rounded-pill ms-1" style="font-size: 0.65rem;">New</span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="paypalDropdown">
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/paypal/settings.php') !== false ? 'active' : ''; ?>" href="/admin/paypal/settings.php">
+                        <i class="fas fa-cog me-2"></i> Settings
+                    </a></li>
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/paypal/products.php') !== false ? 'active' : ''; ?>" href="/admin/paypal/products.php">
+                        <i class="fas fa-box me-2"></i> Products
+                    </a></li>
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/paypal/coupons.php') !== false ? 'active' : ''; ?>" href="/admin/paypal/coupons.php">
+                        <i class="fas fa-ticket-alt me-2"></i> Coupons
+                    </a></li>
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/paypal/coupon_stats.php') !== false ? 'active' : ''; ?>" href="/admin/paypal/coupon_stats.php">
+                        <i class="fas fa-chart-bar me-2"></i> Coupon Stats
+                    </a></li>
+                    <li><a class="dropdown-item <?php echo strpos($_SERVER['REQUEST_URI'], '/admin/paypal/orders.php') !== false ? 'active' : ''; ?>" href="/admin/paypal/orders.php">
+                        <i class="fas fa-shopping-cart me-2"></i> Orders
                     </a></li>
                 </ul>
             </li>

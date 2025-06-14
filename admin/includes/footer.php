@@ -26,6 +26,12 @@
             }
         });
         
+        // Ensure all dropdowns work properly
+        const dropdownToggleList = document.querySelectorAll('.dropdown-toggle');
+        dropdownToggleList.forEach(function(dropdownToggle) {
+            new bootstrap.Dropdown(dropdownToggle);
+        });
+        
         // Loading overlay functions
         window.showLoading = function() {
             document.getElementById('loading-overlay').classList.add('show');

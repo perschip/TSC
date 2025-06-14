@@ -1,0 +1,1136 @@
+<?php
+// store/cart.php
+require_once '../includes/db.php';
+require_once '../includes/functions.php';
+
+// Get PayPal settings
+$paypal_settings = [
+    'client_id' => '',
+    'mode' => 'sandbox',
+    'currency' => 'USD',
+    'business_name' => 'Tristate Cards'
+];
+
+try {
+    $stmt = $pdo->query("SHOW TABLES LIKE 'paypal_settings'");
+    $settings_table_exists = $stmt->rowCount() > 0;
+    
+    if ($settings_table_exists) {
+        $stmt = $pdo->query("SELECT setting_name, setting_value FROM paypal_settings");
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $paypal_settings[$row['setting_name']] = $row['setting_value'];
+        }
+    }
+} catch (PDOException $e) {
+    error_log('Error loading PayPal settings: ' . $e->getMessage());
+}
+
+// Page title
+$page_title = 'Shopping Cart';
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo htmlspecialchars($page_title); ?> - Tristate Cards</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-success: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            padding-top: 56px;
+            background-color: #f8f9fa;
+            color: #495057;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+        }
+        
+        .btn {
+            border-radius: 0.75rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+        }
+        
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-success {
+            background: var(--gradient-success);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: linear-gradient(135deg, #4e9a2a 0%, #95d4b8 100%);
+            transform: translateY(-1px);
+        }
+        
+        .footer {
+            background: var(--gradient-primary);
+            color: white;
+            padding: 40px 0;
+            margin-top: 60px;
+        }
+        
+        .footer a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            color: white;
+        }
+        
+        .cart-item-img {
+            max-width: 80px;
+            max-height: 80px;
+            object-fit: contain;
+            border-radius: 0.5rem;
+        }
+        
+        .card {
+            border-radius: 1rem;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background-color: #fff;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            padding: 1.25rem 1.5rem;
+        }
+        
+        /* Form Styling */
+        .form-control, .form-select {
+            border: 2px solid #e9ecef;
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        .quantity-input {
+            width: 70px;
+        }
+        
+        .cart-summary {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top" style="background: var(--gradient-primary);">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">Tristate Cards</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/store/">Shop</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/about.php">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/contact.php">Contact</a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <a href="/store/cart.php" class="btn btn-light me-2 active">
+                        <i class="fas fa-shopping-cart me-1"></i> Cart <span id="cart-count" class="badge bg-danger">0</span>
+                    </a>
+                    <a href="/checkout/" class="btn btn-outline-light">
+                        <i class="fas fa-credit-card me-1"></i> Checkout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Cart Section -->
+    <section class="container py-5">
+        <h1 class="mb-4">Shopping Cart</h1>
+        
+        <div class="row">
+            <!-- Cart Items -->
+            <div class="col-lg-8 mb-4 mb-lg-0">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Cart Items</h5>
+                    </div>
+                    <div class="card-body" id="cart-items-container">
+                        <!-- Cart items will be loaded here via JavaScript -->
+                        <div class="text-center py-5" id="empty-cart-message">
+                            <i class="fas fa-shopping-cart fa-3x text-muted mb-3"></i>
+                            <h5>Your cart is empty</h5>
+                            <p class="text-muted">Add some products to your cart and they will appear here.</p>
+                            <a href="/store/" class="btn btn-primary mt-3">Continue Shopping</a>
+                            <button onclick="addTestItem()" class="btn btn-outline-secondary mt-3 ms-2">Add Test Item</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Cart Summary -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Order Summary</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Subtotal:</span>
+                            <span id="subtotal">$0.00</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Shipping:</span>
+                            <span id="shipping">$0.00</span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2" id="discount-row" style="display: none;">
+                            <span>Discount:</span>
+                            <span id="discount">-$0.00</span>
+                        </div>
+                        <hr>
+                        <div class="d-flex justify-content-between mb-3">
+                            <strong>Total:</strong>
+                            <strong id="total">$0.00</strong>
+                        </div>
+                        
+                        <!-- Coupon Code Form -->
+                        <div class="mb-4">
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="coupon-code" placeholder="Coupon code">
+                                <button class="btn btn-outline-primary" type="button" id="apply-coupon">Apply</button>
+                            </div>
+                            <div class="form-text" id="coupon-message"></div>
+                        </div>
+                        
+                        <div id="checkout-buttons">
+                            <div class="d-grid gap-2 mb-3">
+                                <button id="checkout-button" class="btn btn-primary" disabled>
+                                    <i class="fas fa-shopping-cart me-2"></i> Proceed to Checkout
+                                </button>
+                            </div>
+                            
+                            <div class="text-center mb-3">- OR -</div>
+                            
+                            <div class="mb-3">
+                                <div class="fw-bold mb-2">Express Checkout:</div>
+                                <div id="paypal-button-container"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-4 mb-md-0">
+                    <h5>Tristate Cards</h5>
+                    <p>Your trusted source for collectible cards and memorabilia.</p>
+                    <div class="d-flex gap-3 mt-3">
+                        <a href="#"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-ebay"></i></a>
+                    </div>
+                </div>
+                
+                <div class="col-md-4 mb-4 mb-md-0">
+                    <h5>Quick Links</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="/">Home</a></li>
+                        <li><a href="/store/">Shop</a></li>
+                        <li><a href="/about.php">About Us</a></li>
+                        <li><a href="/contact.php">Contact</a></li>
+                        <li><a href="/privacy-policy.php">Privacy Policy</a></li>
+                    </ul>
+                </div>
+                
+                <div class="col-md-4">
+                    <h5>Contact Us</h5>
+                    <address>
+                        <p><i class="fas fa-map-marker-alt me-2"></i> 123 Main St, Anytown, USA</p>
+                        <p><i class="fas fa-phone me-2"></i> (555) 123-4567</p>
+                        <p><i class="fas fa-envelope me-2"></i> info@tristatecards.com</p>
+                    </address>
+                </div>
+            </div>
+            
+            <hr class="mt-4 mb-4" style="border-color: rgba(255, 255, 255, 0.1);">
+            
+            <div class="row">
+                <div class="col-md-6 text-center text-md-start">
+                    <p class="mb-0">&copy; <?php echo date('Y'); ?> Tristate Cards. All rights reserved.</p>
+                </div>
+                <div class="col-md-6 text-center text-md-end">
+                    <img src="https://www.paypalobjects.com/webstatic/en_US/i/buttons/pp-acceptance-small.png" alt="PayPal Acceptance">
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Cart Item Template -->
+    <template id="cart-item-template">
+        <div class="cart-item mb-3 border-bottom pb-3">
+            <div class="row align-items-center">
+                <div class="col-3 col-md-2">
+                    <img src="" class="cart-item-img" alt="">
+                </div>
+                <div class="col-9 col-md-4">
+                    <h6 class="cart-item-title mb-1"></h6>
+                    <div class="cart-item-price text-muted"></div>
+                </div>
+                <div class="col-6 col-md-3 mt-3 mt-md-0">
+                    <div class="input-group input-group-sm">
+                        <button class="btn btn-outline-secondary decrease-quantity" type="button">
+                            <i class="fas fa-minus"></i>
+                        </button>
+                        <input type="number" class="form-control text-center item-quantity" value="1" min="1">
+                        <button class="btn btn-outline-secondary increase-quantity" type="button">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-3 col-md-2 text-end mt-3 mt-md-0">
+                    <div class="cart-item-total"></div>
+                </div>
+                <div class="col-3 col-md-1 text-end mt-3 mt-md-0">
+                    <button class="btn btn-sm btn-outline-danger remove-item">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Toast notification function -->
+    <script>
+    function showToast(title, message, type = 'success') {
+        // Remove any existing toasts
+        const existingToasts = document.querySelectorAll('.toast-container');
+        existingToasts.forEach(toast => toast.remove());
+        
+        // Create toast container
+        const toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        toastContainer.style.zIndex = '5';
+        
+        // Set header color based on type
+        let headerClass = 'bg-success';
+        let icon = 'check-circle';
+        
+        if (type === 'error') {
+            headerClass = 'bg-danger';
+            icon = 'exclamation-circle';
+        } else if (type === 'warning') {
+            headerClass = 'bg-warning';
+            icon = 'exclamation-triangle';
+        } else if (type === 'info') {
+            headerClass = 'bg-info';
+            icon = 'info-circle';
+        }
+        
+        // Create toast HTML
+        toastContainer.innerHTML = `
+            <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header ${headerClass} text-white">
+                    <i class="fas fa-${icon} me-2"></i>
+                    <strong class="me-auto">${title}</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                </div>
+            </div>
+        `;
+        
+        // Add to document
+        document.body.appendChild(toastContainer);
+        
+        // Remove after 5 seconds
+        setTimeout(() => {
+            toastContainer.remove();
+        }, 5000);
+    }
+    </script>
+    
+    <!-- PayPal JS SDK -->
+    <?php if (!empty($paypal_settings['client_id'])): ?>
+    <script src="https://www.paypal.com/sdk/js?client-id=<?php echo htmlspecialchars($paypal_settings['client_id']); ?>&currency=<?php echo htmlspecialchars($paypal_settings['currency']); ?>"></script>
+    <?php endif; ?>
+    
+    <!-- Custom JS -->
+    <script>
+    // Add test item function - for debugging only
+    function addTestItem() {
+        let cart = JSON.parse(localStorage.getItem('tristateCart')) || [];
+        cart.push({
+            id: 'test-' + Date.now(),
+            title: 'Test Card Pack',
+            price: 4.99,
+            quantity: 1,
+            image: '/assets/images/products/sample-card.jpg'
+        });
+        localStorage.setItem('tristateCart', JSON.stringify(cart));
+        location.reload();
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Cart page loaded, initializing...');
+        console.log('Raw cart data from localStorage:', localStorage.getItem('tristateCart'));
+        
+        // Initialize cart from localStorage with proper error handling
+        let cart;
+        try {
+            cart = JSON.parse(localStorage.getItem('tristateCart'));
+            console.log('Parsed cart data:', cart);
+            
+            // Ensure cart is an array
+            if (!Array.isArray(cart)) {
+                console.warn('Cart is not an array, resetting to empty array');
+                cart = [];
+                localStorage.setItem('tristateCart', JSON.stringify(cart));
+            }
+        } catch (e) {
+            console.error('Error parsing cart data:', e);
+            cart = [];
+            localStorage.setItem('tristateCart', JSON.stringify(cart));
+        }
+        
+        // If cart is null or undefined, initialize as empty array
+        if (!cart) {
+            cart = [];
+            localStorage.setItem('tristateCart', JSON.stringify(cart));
+        }
+        
+        // Store coupon data
+        let appliedCoupon = {
+            code: '',
+            discount: 0,
+            discountType: ''
+        };
+        
+        // Initialize elements
+        const cartCount = document.querySelector('.cart-count');
+        const cartItemsContainer = document.getElementById('cart-items-container');
+        const emptyCartMessage = document.getElementById('empty-cart-message');
+        const cartItemTemplate = document.getElementById('cart-item-template');
+        const subtotalElement = document.getElementById('subtotal');
+        const shippingElement = document.getElementById('shipping');
+        const totalElement = document.getElementById('total');
+        const couponCodeInput = document.getElementById('coupon-code');
+        const applyCouponButton = document.getElementById('apply-coupon');
+        const couponMessage = document.getElementById('coupon-message');
+        const checkoutButton = document.getElementById('checkout-button');
+        
+        // Set up coupon code application if elements exist
+        if (couponCodeInput && applyCouponButton) {
+            applyCouponButton.addEventListener('click', function() {
+                applyCoupon();
+            });
+            
+            couponCodeInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applyCoupon();
+                }
+            });
+        }
+        
+        function applyCoupon() {
+            console.log('Applying coupon...');
+            if (!couponCodeInput || !couponMessage) {
+                console.error('Coupon elements not found');
+                return;
+            }
+            
+            const couponCode = couponCodeInput.value.trim();
+            if (!couponCode) {
+                couponMessage.textContent = 'Please enter a coupon code';
+                couponMessage.className = 'form-text text-danger';
+                return;
+            }
+            
+            console.log('Applying coupon code:', couponCode);
+            
+            // Show loading state
+            applyCouponButton.disabled = true;
+            applyCouponButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Applying...';
+            couponMessage.textContent = 'Checking coupon...';
+            couponMessage.className = 'form-text text-muted';
+            
+            // Prepare cart data for the request
+            const subtotal = cart.reduce((total, item) => total + (parseFloat(item.price) * item.quantity), 0);
+            
+            // Send request to apply coupon
+            fetch('../checkout/apply_coupon.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    'coupon_code': couponCode,
+                    'cart_total': subtotal,
+                    'cart_items': JSON.stringify(cart)
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Reset button state
+                applyCouponButton.disabled = false;
+                applyCouponButton.innerHTML = 'Apply';
+                
+                if (data.success) {
+                    // Store coupon data
+                    appliedCoupon = {
+                        code: couponCode,
+                        discount: data.discount,
+                        discountType: data.discount_type
+                    };
+                    
+                    // Show success message
+                    couponMessage.textContent = data.message;
+                    couponMessage.className = 'form-text text-success';
+                    
+                    // Store in session for checkout
+                    localStorage.setItem('tristateCartCoupon', JSON.stringify(appliedCoupon));
+                    
+                    // Update totals
+                    updateTotals();
+                    
+                    // Update PayPal button
+                    initPayPalButton();
+                    
+                    // Show toast notification
+                    showToast('Coupon Applied', `Coupon ${couponCode} has been applied to your cart.`, 'success');
+                } else {
+                    // Show error message
+                    couponMessage.textContent = data.message;
+                    couponMessage.className = 'form-text text-danger';
+                    
+                    // Clear any previously applied coupon
+                    appliedCoupon = {
+                        code: '',
+                        discount: 0,
+                        discountType: ''
+                    };
+                    localStorage.removeItem('tristateCartCoupon');
+                    
+                    // Update totals
+                    updateTotals();
+                }
+            })
+            .catch(error => {
+                console.error('Error applying coupon:', error);
+                applyCouponButton.disabled = false;
+                applyCouponButton.innerHTML = 'Apply';
+                couponMessage.textContent = 'Error applying coupon. Please try again.';
+                couponMessage.className = 'form-text text-danger';
+            });
+        }
+        
+        // Check for stored coupon on page load
+        const storedCoupon = localStorage.getItem('tristateCartCoupon');
+        if (storedCoupon) {
+            try {
+                appliedCoupon = JSON.parse(storedCoupon);
+                if (appliedCoupon.code && couponCodeInput && couponMessage) {
+                    couponCodeInput.value = appliedCoupon.code;
+                    couponMessage.textContent = `Coupon ${appliedCoupon.code} applied`;
+                    couponMessage.className = 'form-text text-success';
+                }
+            } catch (e) {
+                console.error('Error parsing stored coupon:', e);
+                localStorage.removeItem('tristateCartCoupon');
+            }
+        }
+        
+        // Elements
+        const cartItemsContainer = document.getElementById('cart-items-container');
+        const emptyCartMessage = document.getElementById('empty-cart-message');
+        const cartItemTemplate = document.getElementById('cart-item-template');
+        const cartCount = document.getElementById('cart-count');
+        const subtotalElement = document.getElementById('subtotal');
+        const shippingElement = document.getElementById('shipping');
+        const totalElement = document.getElementById('total');
+        const checkoutButton = document.getElementById('checkout-button');
+        
+        // Debug cart data
+        console.log('Cart data on page load:', JSON.stringify(cart));
+        
+        // Render cart
+        renderCart();
+        
+        // Helper functions
+        function renderCart() {
+            console.log('Rendering cart...');
+            
+            // Ensure we have the latest cart data with proper error handling
+            try {
+                const rawCart = localStorage.getItem('tristateCart');
+                console.log('Raw cart data from localStorage:', rawCart);
+                
+                if (rawCart) {
+                    cart = JSON.parse(rawCart);
+                    
+                    // Validate cart data
+                    if (!Array.isArray(cart)) {
+                        console.warn('Cart is not an array, resetting');
+                        cart = [];
+                        localStorage.setItem('tristateCart', JSON.stringify(cart));
+                    }
+                } else {
+                    console.warn('No cart data found, initializing empty cart');
+                    cart = [];
+                    localStorage.setItem('tristateCart', JSON.stringify(cart));
+                }
+            } catch (e) {
+                console.error('Error parsing cart data:', e);
+                cart = [];
+                localStorage.setItem('tristateCart', JSON.stringify(cart));
+            }
+            
+            console.log('Cart data for rendering:', JSON.stringify(cart));
+            
+            // Update cart count
+            if (cartCount) {
+                const count = cart.reduce((total, item) => total + (parseInt(item.quantity) || 1), 0);
+                cartCount.textContent = count;
+                console.log('Updated cart count:', count);
+            } else {
+                console.error('Cart count element not found');
+            }
+            
+            // Check if required elements exist
+            if (!cartItemsContainer) {
+                console.error('Cart items container not found');
+                return;
+            }
+            
+            if (!emptyCartMessage) {
+                console.error('Empty cart message not found');
+            }
+            
+            if (!cartItemTemplate) {
+                console.error('Cart item template not found');
+                return;
+            }
+            
+            // Handle empty cart
+            if (!cart || cart.length === 0) {
+                console.log('Cart is empty');
+                
+                // Show empty cart message
+                if (emptyCartMessage) {
+                    emptyCartMessage.style.display = 'block';
+                }
+                
+                // Disable checkout button
+                if (checkoutButton) {
+                    checkoutButton.disabled = true;
+                    checkoutButton.classList.add('disabled');
+                }
+                
+                // Clear any existing items
+                const cartItems = cartItemsContainer.querySelectorAll('.cart-item');
+                cartItems.forEach(item => item.remove());
+                
+                // Update totals with empty cart
+                updateTotals();
+                
+                return;
+            }
+            
+            // Cart has items
+            console.log('Cart has', cart.length, 'items');
+            
+            // Hide empty cart message
+            if (emptyCartMessage) {
+                emptyCartMessage.style.display = 'none';
+            }
+            
+            // Enable checkout button
+            if (checkoutButton) {
+                checkoutButton.disabled = false;
+                checkoutButton.classList.remove('disabled');
+            }
+            
+            // Clear existing cart items
+            const cartItems = cartItemsContainer.querySelectorAll('.cart-item');
+            cartItems.forEach(item => item.remove());
+            console.log('Cleared existing cart items');
+            
+            // Add cart items
+            console.log('Adding', cart.length, 'items to DOM');
+            
+            cart.forEach((item, index) => {
+                try {
+                    // Create cart item from template
+                    const cartItemNode = document.importNode(cartItemTemplate.content, true);
+                    const cartItem = cartItemNode.querySelector('.cart-item');
+                    
+                    if (!cartItem) {
+                        console.error('Failed to create cart item from template');
+                        return;
+                    }
+                    
+                    // Set item data
+                    cartItem.dataset.index = index;
+                    
+                    // Set item details with null checks
+                    const img = cartItem.querySelector('.cart-item-img');
+                    if (img) {
+                        img.src = item.image || '/assets/images/no-image.png';
+                        img.alt = item.title || 'Product';
+                    }
+                    
+                    const titleEl = cartItem.querySelector('.cart-item-title');
+                    if (titleEl) titleEl.textContent = item.title || 'Unknown Product';
+                    
+                    const priceEl = cartItem.querySelector('.cart-item-price');
+                    if (priceEl) priceEl.textContent = `$${parseFloat(item.price || 0).toFixed(2)}`;
+                    
+                    const quantityInput = cartItem.querySelector('.item-quantity');
+                    if (quantityInput) {
+                        quantityInput.value = item.quantity || 1;
+                        quantityInput.dataset.index = index;
+                    }
+                    
+                    const totalEl = cartItem.querySelector('.cart-item-total');
+                    if (totalEl) {
+                        const itemTotal = parseFloat(item.price || 0) * (parseInt(item.quantity) || 1);
+                        totalEl.textContent = `$${itemTotal.toFixed(2)}`;
+                    }
+                    
+                    // Add event listeners
+                    const decreaseBtn = cartItem.querySelector('.decrease-quantity');
+                    if (decreaseBtn) {
+                        decreaseBtn.addEventListener('click', function() {
+                            decreaseQuantity(index);
+                        });
+                    }
+                    
+                    const increaseBtn = cartItem.querySelector('.increase-quantity');
+                    if (increaseBtn) {
+                        increaseBtn.addEventListener('click', function() {
+                            increaseQuantity(index);
+                        });
+                    }
+                    
+                    if (quantityInput) {
+                        quantityInput.addEventListener('change', function() {
+                            updateQuantity(index, parseInt(this.value) || 1);
+                        });
+                    }
+                    
+                    const removeBtn = cartItem.querySelector('.remove-item');
+                    if (removeBtn) {
+                        removeBtn.addEventListener('click', function() {
+                            removeItem(index);
+                        });
+                    }
+                    
+                    // Add to container
+                    cartItemsContainer.appendChild(cartItem);
+                    console.log('Added item to cart:', item.title || 'Unknown item');
+                } catch (e) {
+                    console.error('Error rendering cart item:', e, item);
+                }
+            });
+            
+            // Update totals
+            updateTotals();
+            
+            // Initialize PayPal button
+            initPayPalButton();
+        }
+        
+        // Initialize PayPal button
+        function initPayPalButton() {
+            console.log('Initializing PayPal button...');
+            
+            // Check if PayPal SDK is loaded
+            if (typeof paypal === 'undefined') {
+                console.warn('PayPal SDK not loaded, possibly blocked by ad blocker');
+                return;
+            }
+            
+            // Get PayPal button container
+            const paypalButtonContainer = document.getElementById('paypal-button-container');
+            if (!paypalButtonContainer) {
+                console.error('PayPal button container not found');
+                return;
+            }
+            
+            // Clear existing buttons
+            paypalButtonContainer.innerHTML = '';
+            
+            // Get totals
+            const totals = updateTotals();
+            if (!totals || totals.total <= 0) {
+                console.warn('Cart total is zero or negative, not initializing PayPal');
+                return;
+            }
+            
+            // Create PayPal button
+            paypal.Buttons({
+                style: {
+                    color: 'gold',
+                    shape: 'rect',
+                    label: 'paypal',
+                    layout: 'vertical',
+                },
+                
+                createOrder: function(data, actions) {
+                    // Calculate totals
+                    const subtotal = totals.subtotal;
+                    const shipping = totals.shipping;
+                    const discount = totals.discount;
+                    const total = totals.total;
+                    
+                    // Handle zero or negative total (100% discount)
+                    const paypalTotal = Math.max(0.01, total);
+                    
+                    console.log('Creating PayPal order with total:', paypalTotal.toFixed(2));
+                    
+                    // Create order with item details
+                    return actions.order.create({
+                        purchase_units: [{
+                            description: 'Tristate Cards Order',
+                            amount: {
+                                value: paypalTotal.toFixed(2),
+                                breakdown: {
+                                    item_total: {
+                                        value: subtotal.toFixed(2),
+                                        currency_code: 'USD'
+                                    },
+                                    shipping: {
+                                        value: shipping.toFixed(2),
+                                        currency_code: 'USD'
+                                    },
+                                    discount: {
+                                        value: discount.toFixed(2),
+                                        currency_code: 'USD'
+                                    }
+                                }
+                            },
+                            items: cart.map(item => ({
+                                name: item.title || 'Trading Card',
+                                unit_amount: {
+                                    value: parseFloat(item.price).toFixed(2),
+                                    currency_code: 'USD'
+                                },
+                                quantity: item.quantity || 1
+                            }))
+                        }]
+                    });
+                },
+                
+                onApprove: function(data, actions) {
+                    console.log('PayPal payment approved:', data);
+                    return actions.order.capture().then(function(details) {
+                        console.log('PayPal payment completed:', details);
+                        
+                        // Redirect to checkout with PayPal data
+                        window.location.href = '/checkout/?paypal_order_id=' + data.orderID;
+                    });
+                },
+                
+                onError: function(err) {
+                    console.error('PayPal error:', err);
+                    showToast('error', 'Payment Error', 'There was an error processing your payment. Please try again.');
+                }
+            }).render('#paypal-button-container');
+            
+            console.log('PayPal button rendered successfully');
+        }
+        
+        // Update totals function
+        function updateTotals() {
+            // Get elements
+            const subtotalElement = document.getElementById('subtotal');
+            const shippingElement = document.getElementById('shipping');
+            const discountElement = document.getElementById('discount');
+            const totalElement = document.getElementById('total');
+            const discountRow = document.getElementById('discount-row');
+            
+            // Calculate subtotal
+            let subtotal = 0;
+            cart.forEach(item => {
+                const price = parseFloat(item.price) || 0;
+                const quantity = parseInt(item.quantity) || 1;
+                subtotal += price * quantity;
+            });
+            
+            // Fixed shipping rate
+            const shipping = subtotal > 0 ? 5.99 : 0;
+            
+            // Apply coupon if available
+            let discount = 0;
+            const appliedCoupon = JSON.parse(localStorage.getItem('tristateAppliedCoupon') || 'null');
+            
+            if (appliedCoupon) {
+                if (appliedCoupon.type === 'percentage') {
+                    discount = subtotal * (appliedCoupon.value / 100);
+                } else if (appliedCoupon.type === 'fixed') {
+                    discount = appliedCoupon.value;
+                }
+                
+                // Don't allow discount to exceed subtotal
+                if (discount > subtotal) {
+                    discount = subtotal;
+                }
+                
+                // Show discount row
+                if (discountRow) {
+                    discountRow.style.display = 'table-row';
+                }
+            } else {
+                // Hide discount row if no coupon
+                if (discountRow) {
+                    discountRow.style.display = 'none';
+                }
+            }
+            
+            // Calculate total
+            const total = subtotal + shipping - discount;
+            
+            // Update display
+            if (subtotalElement) subtotalElement.textContent = `$${subtotal.toFixed(2)}`;
+            if (shippingElement) shippingElement.textContent = `$${shipping.toFixed(2)}`;
+            if (discountElement) discountElement.textContent = `-$${discount.toFixed(2)}`;
+            if (totalElement) totalElement.textContent = `$${total.toFixed(2)}`;
+            
+            console.log('Updated totals:', {
+                subtotal: subtotal.toFixed(2),
+                shipping: shipping.toFixed(2),
+                discount: discount.toFixed(2),
+                total: total.toFixed(2)
+            });
+            
+            // Return values for PayPal
+            return {
+                subtotal,
+                shipping,
+                discount,
+                total
+            };
+        }
+        
+        // Functions for cart item manipulation
+        function decreaseQuantity(index) {
+            console.log('Decreasing quantity for item at index:', index);
+            if (!Array.isArray(cart) || index < 0 || index >= cart.length) {
+                console.error('Invalid cart or index');
+                return;
+            }
+            
+            if (cart[index].quantity > 1) {
+                cart[index].quantity -= 1;
+                console.log('Decreased quantity to:', cart[index].quantity);
+            } else {
+                // If quantity would be 0, remove the item
+                removeItem(index);
+                return;
+            }
+            
+            // Save cart and update UI
+            localStorage.setItem('tristateCart', JSON.stringify(cart));
+            renderCart();
+            showToast('success', 'Cart Updated', 'Item quantity updated');
+        }
+        
+        function increaseQuantity(index) {
+            console.log('Increasing quantity for item at index:', index);
+            if (!Array.isArray(cart) || index < 0 || index >= cart.length) {
+                console.error('Invalid cart or index');
+                return;
+            }
+            
+            // Increase quantity with a reasonable limit
+            if (cart[index].quantity < 99) {
+                cart[index].quantity += 1;
+                console.log('Increased quantity to:', cart[index].quantity);
+            } else {
+                console.warn('Maximum quantity reached');
+                showToast('warning', 'Maximum Quantity', 'Cannot add more of this item');
+                return;
+            }
+            
+            // Save cart and update UI
+            localStorage.setItem('tristateCart', JSON.stringify(cart));
+            renderCart();
+            showToast('success', 'Cart Updated', 'Item quantity updated');
+        }
+        
+        function updateQuantity(index, quantity) {
+            console.log('Updating quantity for item at index:', index, 'to:', quantity);
+            if (!Array.isArray(cart) || index < 0 || index >= cart.length) {
+                console.error('Invalid cart or index');
+                return;
+            }
+            
+            // Validate quantity
+            if (quantity <= 0) {
+                removeItem(index);
+                return;
+            } else if (quantity > 99) {
+                quantity = 99;
+                showToast('warning', 'Maximum Quantity', 'Quantity limited to 99');
+            }
+            
+            // Update quantity
+            cart[index].quantity = quantity;
+            
+            // Save cart and update UI
+            localStorage.setItem('tristateCart', JSON.stringify(cart));
+            renderCart();
+            showToast('success', 'Cart Updated', 'Item quantity updated');
+        }
+        
+        function removeItem(index) {
+            console.log('Removing item at index:', index);
+            if (!Array.isArray(cart) || index < 0 || index >= cart.length) {
+                console.error('Invalid cart or index');
+                return;
+            }
+            
+            // Get item info for toast message
+            const itemTitle = cart[index].title || 'Item';
+            
+            // Remove item
+            cart.splice(index, 1);
+            console.log('Item removed, cart now has', cart.length, 'items');
+            
+            // Save cart and update UI
+            localStorage.setItem('tristateCart', JSON.stringify(cart));
+            renderCart();
+            showToast('info', 'Item Removed', `${itemTitle} has been removed from your cart`);
+        }
+        
+        // Store coupon data
+        let appliedCoupon = {
+            code: '',
+            discount: 0,
+            discountType: ''
+        };
+        
+        // Show toast notification function
+        function showToast(title, message, type = 'info') {
+            // Create toast container if it doesn't exist
+            let toastContainer = document.getElementById('toast-container');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.id = 'toast-container';
+                toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+                document.body.appendChild(toastContainer);
+            }
+            
+            // Create a unique ID for the toast
+            const toastId = 'toast-' + Date.now();
+            
+            // Create toast element
+            const toastHTML = `
+                <div id="${toastId}" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header bg-${type} text-white">
+                        <strong class="me-auto">${title}</strong>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                </div>
+            `;
+            
+            // Add toast to container
+            toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+            
+            // Initialize and show the toast
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, { delay: 3000 });
+            toast.show();
+            
+            // Remove toast after it's hidden
+            toastElement.addEventListener('hidden.bs.toast', function() {
+                toastElement.remove();
+            });
+        }
+        
+        // Add checkout button click handler
+        document.getElementById('checkout-button').addEventListener('click', function() {
+            // Show loading overlay
+            const loadingOverlay = document.createElement('div');
+            loadingOverlay.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center';
+            loadingOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            loadingOverlay.style.zIndex = '9999';
+            loadingOverlay.innerHTML = `
+                <div class="bg-white p-5 rounded-3 text-center">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5>Preparing Checkout...</h5>
+                </div>
+            `;
+            document.body.appendChild(loadingOverlay);
+            
+            // Redirect after a short delay to show the loading effect
+            setTimeout(() => {
+                window.location.href = '/checkout/';
+            }, 800);
+        });
+    });
+    </script>
+</body>
+</html>

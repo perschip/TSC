@@ -1,4 +1,7 @@
 <?php
+// Define base URL for assets and links
+$base_url = '';
+
 // Get site settings
 $site_name = getSetting('site_name', 'Tristate Cards');
 $site_description = getSetting('site_description', 'Your trusted source for sports cards, collectibles, and memorabilia');
@@ -56,7 +59,10 @@ $whatnot_username = getSetting('whatnot_username');
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
 
-  gtag('config', 'G-LBD5R9TRZ7');
+  gtag('config', 'G-LBD5R9TRZ7', {
+    'page_load_time': true,
+    'site_speed_sample_rate': 100
+  });
 </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -91,13 +97,24 @@ $whatnot_username = getSetting('whatnot_username');
     <link rel="icon" href="/favicon.ico">
     <link rel="apple-touch-icon" sizes="180x180" href="/assets/images/apple-touch-icon.png">
     
+    <!-- Preload critical resources -->
+    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" as="style">
+    <link rel="preload" href="/assets/css/style.css" as="style">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
     <!-- CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Defer non-critical CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"></noscript>
     
     <!-- Custom CSS -->
     <link href="/assets/css/main.css" rel="stylesheet">
+    <link href="/assets/css/exit-popup.css" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="/assets/css/exit-popup.css" rel="stylesheet"></noscript>
     
     <?php if (isset($extra_css) && !empty($extra_css)): ?>
     <!-- Page Specific CSS -->
@@ -125,7 +142,7 @@ $whatnot_username = getSetting('whatnot_username');
  <!-- Navigation -->
 <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
     <div class="container">
-        <a class="navbar-brand" href="index.php">
+        <a class="navbar-brand" href="/index.php">
             <?php echo htmlspecialchars($site_name); ?>
         </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -167,6 +184,15 @@ $whatnot_username = getSetting('whatnot_username');
                         if (strpos($href, 'whatnot.com/user/') !== false && $whatnot_username) {
                             $href = 'https://www.whatnot.com/user/' . $whatnot_username;
                         }
+                        
+                        // Make sure internal links use absolute paths
+                        if (strpos($href, 'http') !== 0 && strpos($href, '#') !== 0) {
+                            // If it's not already an absolute URL or anchor link
+                            if (substr($href, 0, 1) !== '/') {
+                                // If it doesn't already start with a slash, add one
+                                $href = '/' . $href;
+                            }
+                        }
                         ?>
                         <li class="nav-item">
                             <a class="nav-link <?php echo $is_active ? 'active' : ''; ?>" href="<?php echo htmlspecialchars($href); ?>"<?php echo $target_attr; ?>>
@@ -179,16 +205,21 @@ $whatnot_username = getSetting('whatnot_username');
                     // If database error, show default navigation
                     ?>
                     <li class="nav-item">
-                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'index.php' ? 'active' : ''; ?>" href="index.php">Home</a>
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'index.php' ? 'active' : ''; ?>" href="/index.php">Home</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link <?php echo $is_blog_page ? 'active' : ''; ?>" href="blog.php">Blog</a>
+                        <a class="nav-link <?php echo $is_blog_page ? 'active' : ''; ?>" href="/blog.php">Blog</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'about.php' ? 'active' : ''; ?>" href="about.php">About</a>
+                        <a class="nav-link <?php echo strpos($_SERVER['PHP_SELF'], 'releases') !== false ? 'active' : ''; ?>" href="/releases/index.php">
+                            <i class="fas fa-calendar-alt me-1"></i> Release Calendar
+                        </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'contact.php' ? 'active' : ''; ?>" href="contact.php">Contact</a>
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'about.php' ? 'active' : ''; ?>" href="/about.php">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) === 'contact.php' ? 'active' : ''; ?>" href="/contact.php">Contact</a>
                     </li>
                     <?php if ($whatnot_username = getSetting('whatnot_username')): ?>
                     <li class="nav-item">

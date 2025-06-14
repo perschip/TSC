@@ -1,0 +1,568 @@
+<?php
+// store/product.php
+require_once '../includes/db.php';
+require_once '../includes/functions.php';
+
+// Get product ID from URL
+$product_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+// Check if products table exists
+$products_table_exists = false;
+try {
+    $stmt = $pdo->query("SHOW TABLES LIKE 'products'");
+    $products_table_exists = $stmt->rowCount() > 0;
+} catch (PDOException $e) {
+    error_log('Error checking products table: ' . $e->getMessage());
+}
+
+// Get product details
+$product = null;
+if ($products_table_exists && $product_id > 0) {
+    try {
+        $stmt = $pdo->prepare("SELECT * FROM products WHERE id = :id AND status = 'active'");
+        $stmt->execute([':id' => $product_id]);
+        $product = $stmt->fetch(PDO::FETCH_ASSOC);
+    } catch (PDOException $e) {
+        error_log('Error loading product: ' . $e->getMessage());
+    }
+}
+
+// Get PayPal settings
+$paypal_settings = [
+    'client_id' => '',
+    'mode' => 'sandbox',
+    'currency' => 'USD',
+    'business_name' => 'Tristate Cards'
+];
+
+if ($products_table_exists) {
+    try {
+        $stmt = $pdo->query("SHOW TABLES LIKE 'paypal_settings'");
+        $settings_table_exists = $stmt->rowCount() > 0;
+        
+        if ($settings_table_exists) {
+            $stmt = $pdo->query("SELECT setting_name, setting_value FROM paypal_settings");
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $paypal_settings[$row['setting_name']] = $row['setting_value'];
+            }
+        }
+    } catch (PDOException $e) {
+        error_log('Error loading PayPal settings: ' . $e->getMessage());
+    }
+}
+
+// Page title
+$page_title = $product ? $product['title'] : 'Product Not Found';
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?php echo htmlspecialchars($page_title); ?> - Tristate Cards</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #2c3e50;
+            --accent-color: #e74c3c;
+            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-success: linear-gradient(135deg, #56ab2f 0%, #a8e6cf 100%);
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            padding-top: 56px;
+            background-color: #f8f9fa;
+            color: #495057;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+        }
+        
+        .product-img-container {
+            height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background-color: white;
+            border-radius: 1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .product-img {
+            max-height: 100%;
+            max-width: 100%;
+            object-fit: contain;
+        }
+        
+        .product-price {
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+        
+        .btn {
+            border-radius: 0.75rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+        }
+        
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-success {
+            background: var(--gradient-success);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: linear-gradient(135deg, #4e9a2a 0%, #95d4b8 100%);
+            transform: translateY(-1px);
+        }
+        
+        .section-title {
+            position: relative;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+        }
+        
+        .section-title:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 50px;
+            height: 3px;
+            background: var(--gradient-primary);
+        }
+        
+        .card {
+            border-radius: 1rem;
+            border: none;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background-color: #fff;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            padding: 1.25rem 1.5rem;
+        }
+        
+        /* Form Styling */
+        .form-control, .form-select {
+            border: 2px solid #e9ecef;
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        .footer {
+            background: var(--gradient-primary);
+            color: white;
+            padding: 40px 0;
+            margin-top: 60px;
+        }
+        
+        .footer a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            color: white;
+        }
+        
+        .badge-new {
+            background: linear-gradient(135deg, #ff6b6b 0%, #e74c3c 100%);
+            color: white;
+            font-size: 0.75rem;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            box-shadow: 0 2px 5px rgba(231, 76, 60, 0.3);
+        }
+        
+        .quantity-input {
+            width: 70px;
+        }
+        
+        .product-meta {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        
+        .product-description {
+            white-space: pre-line;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top" style="background: var(--gradient-primary);">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">Tristate Cards</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/store/">Shop</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/about.php">About</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/contact.php">Contact</a>
+                    </li>
+                </ul>
+                <div class="d-flex">
+                    <a href="/store/cart.php" class="btn btn-light me-2">
+                        <i class="fas fa-shopping-cart me-1"></i> Cart <span id="cart-count" class="badge bg-danger">0</span>
+                    </a>
+                    <a href="/checkout/" class="btn btn-outline-light">
+                        <i class="fas fa-credit-card me-1"></i> Checkout
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Product Detail Section -->
+    <section class="container py-5">
+        <div class="mb-4">
+            <a href="/store/" class="text-decoration-none">
+                <i class="fas fa-arrow-left me-2"></i> Back to Shop
+            </a>
+        </div>
+        
+        <?php if (!$product): ?>
+            <div class="alert alert-warning">
+                <h4>Product Not Found</h4>
+                <p>Sorry, the product you're looking for doesn't exist or has been removed.</p>
+                <a href="/store/" class="btn btn-primary mt-3">Continue Shopping</a>
+            </div>
+        <?php else: ?>
+            <div class="row">
+                <!-- Product Image -->
+                <div class="col-md-6 mb-4">
+                    <div class="product-img-container p-3 shadow-sm">
+                        <?php if (!empty($product['image_url'])): ?>
+                            <img src="<?php echo htmlspecialchars($product['image_url']); ?>" class="product-img" alt="<?php echo htmlspecialchars($product['title']); ?>">
+                        <?php else: ?>
+                            <img src="/assets/images/no-image.png" class="product-img" alt="No image available">
+                        <?php endif; ?>
+                    </div>
+                </div>
+                
+                <!-- Product Details -->
+                <div class="col-md-6">
+                    <h1 class="mb-3"><?php echo htmlspecialchars($product['title']); ?></h1>
+                    
+                    <?php if (strtotime($product['created_at']) > strtotime('-7 days')): ?>
+                        <span class="badge-new mb-3 d-inline-block">NEW</span>
+                    <?php endif; ?>
+                    
+                    <div class="product-meta mb-3">
+                        <?php if (!empty($product['sku'])): ?>
+                            <p><strong>SKU:</strong> <?php echo htmlspecialchars($product['sku']); ?></p>
+                        <?php endif; ?>
+                        
+                        <?php if (!empty($product['category'])): ?>
+                            <p><strong>Category:</strong> <?php echo htmlspecialchars($product['category']); ?></p>
+                        <?php endif; ?>
+                        
+                        <p><strong>Availability:</strong> 
+                            <?php if ($product['inventory'] > 0): ?>
+                                <span class="text-success">In Stock (<?php echo $product['inventory']; ?> available)</span>
+                            <?php else: ?>
+                                <span class="text-danger">Out of Stock</span>
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                    
+                    <div class="product-price mb-4">$<?php echo number_format($product['price'], 2); ?></div>
+                    
+                    <div class="product-description mb-4">
+                        <?php echo nl2br(htmlspecialchars($product['description'])); ?>
+                    </div>
+                    
+                    <?php if ($product['inventory'] > 0): ?>
+                        <div class="d-flex align-items-center mb-4">
+                            <label for="quantity" class="me-3">Quantity:</label>
+                            <input type="number" id="quantity" class="form-control quantity-input me-3" value="1" min="1" max="<?php echo $product['inventory']; ?>">
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-block">
+                            <button id="add-to-cart" class="btn btn-primary btn-lg me-md-2">
+                                <i class="fas fa-cart-plus me-2"></i> Add to Cart
+                            </button>
+                            
+                            <div id="paypal-button-container" class="mt-3"></div>
+                        </div>
+                    <?php else: ?>
+                        <div class="alert alert-secondary">
+                            <p class="mb-0">This item is currently out of stock. Please check back later.</p>
+                        </div>
+                    <?php endif; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4 mb-4 mb-md-0">
+                    <h5>Tristate Cards</h5>
+                    <p>Your trusted source for collectible cards and memorabilia.</p>
+                    <div class="d-flex gap-3 mt-3">
+                        <a href="#"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-ebay"></i></a>
+                    </div>
+                </div>
+                
+                <div class="col-md-4 mb-4 mb-md-0">
+                    <h5>Quick Links</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="/">Home</a></li>
+                        <li><a href="/store/">Shop</a></li>
+                        <li><a href="/about.php">About Us</a></li>
+                        <li><a href="/contact.php">Contact</a></li>
+                        <li><a href="/privacy-policy.php">Privacy Policy</a></li>
+                    </ul>
+                </div>
+                
+                <div class="col-md-4">
+                    <h5>Contact Us</h5>
+                    <address>
+                        <p><i class="fas fa-map-marker-alt me-2"></i> 123 Main St, Anytown, USA</p>
+                        <p><i class="fas fa-phone me-2"></i> (555) 123-4567</p>
+                        <p><i class="fas fa-envelope me-2"></i> info@tristatecards.com</p>
+                    </address>
+                </div>
+            </div>
+            
+            <hr class="mt-4 mb-4" style="border-color: rgba(255, 255, 255, 0.1);">
+            
+            <div class="row">
+                <div class="col-md-6 text-center text-md-start">
+                    <p class="mb-0">&copy; <?php echo date('Y'); ?> Tristate Cards. All rights reserved.</p>
+                </div>
+                <div class="col-md-6 text-center text-md-end">
+                    <img src="https://www.paypalobjects.com/webstatic/en_US/i/buttons/pp-acceptance-small.png" alt="PayPal Acceptance">
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- PayPal JS SDK -->
+    <?php if (!empty($paypal_settings['client_id']) && $product && $product['inventory'] > 0): ?>
+    <script src="https://www.paypal.com/sdk/js?client-id=<?php echo htmlspecialchars($paypal_settings['client_id']); ?>&currency=<?php echo htmlspecialchars($paypal_settings['currency']); ?>"></script>
+    <?php endif; ?>
+    
+    <!-- Custom JS -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize cart from localStorage
+        let cart = JSON.parse(localStorage.getItem('tristateCart')) || [];
+        updateCartCount();
+        
+        <?php if ($product && $product['inventory'] > 0): ?>
+        // Add to cart button
+        const addToCartButton = document.getElementById('add-to-cart');
+        if (addToCartButton) {
+            addToCartButton.addEventListener('click', function() {
+                const quantity = parseInt(document.getElementById('quantity').value) || 1;
+                addToCart(quantity);
+            });
+        }
+        
+        // Initialize PayPal button
+        <?php if (!empty($paypal_settings['client_id'])): ?>
+        if (typeof paypal !== 'undefined') {
+            // Show loading indicator while PayPal initializes
+            const paypalButtonContainer = document.getElementById('paypal-button-container');
+            if (paypalButtonContainer) {
+                paypalButtonContainer.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Loading payment options...</p></div>';
+            }
+            
+            paypal.Buttons({
+                style: {
+                    layout: 'horizontal',
+                    color: 'gold',
+                    shape: 'pill',
+                    label: 'pay'
+                },
+                createOrder: function(data, actions) {
+                    const quantity = parseInt(document.getElementById('quantity').value) || 1;
+                    const amount = <?php echo $product['price']; ?> * quantity;
+                    
+                    return actions.order.create({
+                        purchase_units: [{
+                            description: '<?php echo addslashes($product['title']); ?>',
+                            amount: {
+                                value: amount.toFixed(2)
+                            }
+                        }]
+                    });
+                },
+                onApprove: function(data, actions) {
+                    return actions.order.capture().then(function(details) {
+                        // Show success message
+                        showToast('Order Complete', 'Thank you for your purchase! Your transaction has been completed.', 'success');
+                        
+                        // In a real implementation, you would send the order details to your server
+                        // and redirect to an order confirmation page
+                        setTimeout(function() {
+                            window.location.href = '/store/thank-you.php?order_id=' + data.orderID;
+                        }, 3000);
+                    });
+                },
+                onError: function(err) {
+                    console.error('PayPal error:', err);
+                    showToast('Payment Error', 'There was an error processing your payment. Please try again.', 'error');
+                },
+                onCancel: function() {
+                    showToast('Payment Cancelled', 'Your payment was cancelled. You can continue shopping.', 'warning');
+                }
+            }).render('#paypal-button-container');
+        }
+        <?php endif; ?>
+        <?php endif; ?>
+        
+        // Helper functions
+        function updateCartCount() {
+            const cartCount = document.getElementById('cart-count');
+            if (cartCount) {
+                cartCount.textContent = cart.reduce((total, item) => total + (item.quantity || 0), 0);
+            }
+        }
+        
+        function addToCart(quantity) {
+            const productId = <?php echo $product ? $product['id'] : 0; ?>;
+            const productTitle = '<?php echo $product ? addslashes($product['title']) : ''; ?>';
+            const productPrice = <?php echo $product ? $product['price'] : 0; ?>;
+            const productImage = '<?php echo $product ? addslashes($product['image']) : ''; ?>';
+            
+            // Check if product already in cart
+            const existingItemIndex = cart.findIndex(item => item.id === productId);
+            
+            if (existingItemIndex > -1) {
+                // Increase quantity
+                cart[existingItemIndex].quantity += quantity;
+            } else {
+                // Add new item
+                cart.push({
+                    id: productId,
+                    title: productTitle,
+                    price: productPrice,
+                    quantity: quantity,
+                    image: productImage
+                });
+            }
+            
+            // Save cart
+            localStorage.setItem('tristateCart', JSON.stringify(cart));
+            
+            // Update UI
+            updateCartCount();
+            
+            // Show success toast
+            showToast('Added to Cart', `${productTitle} has been added to your cart.`, 'success');
+        }
+        
+        function showToast(title, message, type = 'success') {
+            // Remove any existing toasts
+            const existingToasts = document.querySelectorAll('.toast-container');
+            existingToasts.forEach(toast => toast.remove());
+            
+            // Create toast container
+            const toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            toastContainer.style.zIndex = '5';
+            
+            // Set header color based on type
+            let headerClass = 'bg-success';
+            let icon = 'check-circle';
+            
+            if (type === 'error') {
+                headerClass = 'bg-danger';
+                icon = 'exclamation-circle';
+            } else if (type === 'warning') {
+                headerClass = 'bg-warning';
+                icon = 'exclamation-triangle';
+            } else if (type === 'info') {
+                headerClass = 'bg-info';
+                icon = 'info-circle';
+            }
+            
+            // Create toast HTML
+            toastContainer.innerHTML = `
+                <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header ${headerClass} text-white">
+                        <i class="fas fa-${icon} me-2"></i>
+                        <strong class="me-auto">${title}</strong>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        ${message}
+                        <div class="mt-2 pt-2 border-top">
+                            <a href="/store/cart.php" class="btn btn-primary btn-sm">View Cart</a>
+                            <a href="/checkout/" class="btn btn-success btn-sm">Checkout</a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add to document
+            document.body.appendChild(toastContainer);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                toastContainer.remove();
+            }, 5000);
+        }
+    });
+    </script>
+</body>
+</html>

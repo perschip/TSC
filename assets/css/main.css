@@ -1,6 +1,7 @@
 /* 
  * Tristate Cards Main Stylesheet
  * Main frontend styles for the Tristate Cards website
+ * Updated with improved responsiveness and user experience
  */
 
 /* ---------- Global Variables ---------- */
@@ -24,15 +25,26 @@ body {
     font-family: 'Roboto', sans-serif;
     background-color: #f9f9f9;
     color: var(--dark-color);
+    overflow-x: hidden; /* Prevent horizontal scrolling */
+    line-height: 1.6; /* Improve readability */
+    font-size: 16px; /* Base font size */
 }
 
 a {
     text-decoration: none;
-    transition: color var(--transition-speed);
+    transition: color var(--transition-speed), transform var(--transition-speed);
+    color: var(--primary-color); /* Ensure links are clearly visible */
 }
 
 a:hover {
     text-decoration: none;
+    color: var(--accent-color); /* Clear hover state */
+}
+
+/* Improve focus states for accessibility */
+a:focus, button:focus, input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
 }
 
 /* ---------- Layout Components ---------- */
@@ -41,51 +53,107 @@ a:hover {
 .navbar {
     background-color: var(--dark-color);
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 0.5rem 1rem; /* Consistent padding */
 }
 
 .navbar-brand {
     font-weight: 700;
     color: var(--light-color);
+    font-size: 1.4rem; /* Larger brand name */
 }
 
 .nav-link {
     color: var(--light-color);
-    transition: color var(--transition-speed);
+    transition: color var(--transition-speed), background-color var(--transition-speed);
+    padding: 0.7rem 1rem; /* Larger click target */
+    border-radius: 4px; /* Rounded corners */
+    margin: 0 0.2rem; /* Add spacing between items */
 }
 
 .nav-link:hover {
-    color: var(--accent-color);
+    color: var(--light-color);
+    background-color: rgba(255,255,255,0.1); /* Visible hover state */
 }
 
 .nav-link.active {
-    color: var(--primary-color);
+    color: var(--light-color);
+    background-color: var(--primary-color); /* More visible active state */
     font-weight: 500;
+}
+
+/* Improve mobile navigation */
+.navbar-toggler {
+    border-color: rgba(255,255,255,0.1);
+    padding: 0.5rem;
+}
+
+.navbar-toggler:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(255,255,255,0.25);
 }
 
 /* Hero Section */
 .hero-section {
     background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
     color: white;
-    padding: 3rem 0;
+    padding: 4rem 0; /* More vertical space */
     margin-bottom: 2rem;
+    text-align: center; /* Center content for better focus */
+    border-radius: 0 0 1rem 1rem; /* Rounded bottom corners */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1); /* Subtle shadow for depth */
 }
 
 .hero-section h1 {
     font-weight: 700;
     font-size: 2.5rem;
+    margin-bottom: 1.5rem; /* More spacing below heading */
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.2); /* Text shadow for better readability */
+}
+
+.hero-section p {
+    font-size: 1.2rem;
+    max-width: 700px;
+    margin: 0 auto 1.5rem auto; /* Center and add bottom margin */
+    opacity: 0.9; /* Slightly reduce opacity for hierarchy */
+}
+
+.hero-section .btn {
+    padding: 0.75rem 2rem; /* Larger button */
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.hero-section .btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
 }
 
 /* Cards */
 .card {
     border: none;
     box-shadow: var(--box-shadow);
-    transition: transform var(--transition-speed);
+    transition: transform var(--transition-speed), box-shadow var(--transition-speed);
     margin-bottom: 1.5rem;
     border-radius: var(--border-radius);
+    overflow: hidden; /* Ensure content doesn't overflow */
+    height: 100%; /* Make all cards equal height in a row */
 }
 
 .card:hover {
     transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.12); /* Enhanced shadow on hover */
+}
+
+.card-body {
+    padding: 1.5rem; /* Consistent padding */
+}
+
+.card-img-top {
+    height: 200px; /* Consistent image height */
+    object-fit: cover; /* Maintain aspect ratio */
 }
 
 .card-title {
@@ -138,8 +206,9 @@ a:hover {
 .footer {
     background-color: var(--dark-color);
     color: var(--light-color);
-    padding: 2rem 0;
-    margin-top: 3rem;
+    padding: 3rem 0 2rem; /* More padding on top */
+    margin-top: 4rem;
+    border-top: 5px solid var(--primary-color); /* Colored border for visual interest */
 }
 
 .footer a {
@@ -224,14 +293,49 @@ a:hover {
     box-shadow: 0 0 0 0.2rem rgba(2, 117, 216, 0.25);
 }
 
+/* Improved Button Styles */
+.btn {
+    border-radius: 4px;
+    padding: 0.5rem 1.5rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
 .btn-primary {
     background-color: var(--primary-color);
     border-color: var(--primary-color);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .btn-primary:hover, .btn-primary:focus {
     background-color: #0269c2;
     border-color: #0262b7;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.btn-secondary {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+
+.btn-secondary:hover, .btn-secondary:focus {
+    background-color: #5a6268;
+    border-color: #545b62;
+    transform: translateY(-2px);
+}
+
+.btn-accent {
+    background-color: var(--accent-color);
+    border-color: var(--accent-color);
+    color: white;
+}
+
+.btn-accent:hover, .btn-accent:focus {
+    background-color: #e96b02;
+    border-color: #df6602;
+    color: white;
+    transform: translateY(-2px);
 }
 
 /* ---------- Utility Classes ---------- */
@@ -245,20 +349,68 @@ a:hover {
 /* ---------- Responsive Adjustments ---------- */
 @media (max-width: 767.98px) {
     .hero-section {
-        padding: 2rem 0;
+        padding: 3rem 0;
     }
     
     .hero-section h1 {
-        font-size: 2rem;
+        font-size: 1.8rem;
+    }
+    
+    .hero-section p {
+        font-size: 1rem;
+        padding: 0 1rem;
     }
     
     .footer {
         text-align: center;
+        padding: 1.5rem 0;
     }
     
     .social-links {
         justify-content: center;
         margin-bottom: 1rem;
+    }
+    
+    /* Improve card display on mobile */
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    /* Adjust section spacing */
+    section {
+        padding: 2rem 0;
+    }
+    
+    /* Make buttons more touch-friendly */
+    .btn {
+        padding: 0.6rem 1.2rem;
+        font-size: 1rem;
+    }
+    
+    /* Improve table display on mobile */
+    .table-responsive {
+        margin-bottom: 1rem;
+    }
+}
+
+/* Extra small devices */
+@media (max-width: 575.98px) {
+    .container {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    
+    .hero-section h1 {
+        font-size: 1.6rem;
+    }
+    
+    /* Adjust spacing for better mobile experience */
+    h2, .h2 {
+        font-size: 1.5rem;
+    }
+    
+    h3, .h3 {
+        font-size: 1.3rem;
     }
 }
 
@@ -440,7 +592,7 @@ a:hover {
 }
 .accent-line {
     border-top: 1px solid rgba(255, 255, 255, 0.2);
-    width: 80%;
+    width: 100%; /* Full width for better visual */
     margin: 0.5rem 0 1rem 0;
     opacity: 0.8;
 }
